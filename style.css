@@ -1,0 +1,29 @@
+#game {
+    width: 400px;
+    height: 200px;
+    border: 2px solid black;
+    position: relative;
+    overflow: hidden;
+    background-color: #f0f0f0;
+}
+#player {
+    width: 30px;
+    height: 30px;
+    background-color: blue;
+    position: absolute;
+    bottom: 0;
+    left: 50px;
+}
+#obstacle {
+    width: 20px;
+    height: 40px;
+    background-color: red;
+    position: absolute;
+    bottom: 0;
+    left: 400px;
+    animation: moveObstacle 1.5s infinite linear;
+}
+@keyframes moveObstacle {
+    0% { left: 400px; }
+    100% { left: -40px; }
+}
