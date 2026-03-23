@@ -1,15 +1,29 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Jogo JS Simples</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro Racing 2P</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="game">
-        <div id="player"></div>
-        <div id="obstacle"></div>
+    <div class="game-container">
+        <div class="ui">
+            <h1>Retro Racing</h1>
+            <div class="scoreboard">
+                <span id="scoreP1" style="color: #ff4757;">Player 1: 0</span>
+                <span id="scoreP2" style="color: #1e90ff;">Player 2: 0</span>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+
+        <div class="instructions">
+            <div><strong>P1:</strong> Setas para dirigir</div>
+            <div><strong>P2:</strong> W, A, S, D para dirigir</div>
+        </div>
     </div>
+
     <script src="script.js"></script>
 </body>
 </html>
