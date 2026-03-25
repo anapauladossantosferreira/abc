@@ -2,28 +2,15 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Retro Racing 2P</title>
+    <title>Corrida 2P: Evolução</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="game-container">
-        <div class="ui">
-            <h1>Retro Racing</h1>
-            <div class="scoreboard">
-                <span id="scoreP1" style="color: #ff4757;">Player 1: 0</span>
-                <span id="scoreP2" style="color: #1e90ff;">Player 2: 0</span>
-            </div>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
-
-        <div class="instructions">
-            <div><strong>P1:</strong> Setas para dirigir</div>
-            <div><strong>P2:</strong> W, A, S, D para dirigir</div>
-        </div>
+    <div class="ui">
+        <h1 id="faseTitulo">FASE 1: Reta Final</h1>
+        <p>P1: Setas | P2: WASD - Chegue ao fim para avançar!</p>
     </div>
-
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script src="script.js"></script>
 </body>
 </html>
