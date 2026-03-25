@@ -1,56 +1,6 @@
 body {
     background-color: #1a1a1a;
     color: white;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    margin: 0;
-    overflow: hidden;
-}
-
-.game-container {
-    text-align: center;
-}
-
-.ui {
-    margin-bottom: 10px;
-}
-
-h1 {
-    margin: 0;
-    text-transform: uppercase;
-    letter-spacing: 3px;
-    color: #f1c40f;
-}
-
-.scoreboard {
-    font-size: 1.5rem;
-    font-weight: bold;
-    display: flex;
-    justify-content: space-around;
-    margin-top: 10px;
-}
-
-canvas {
-    background: #2c3e50;
-    border: 4px solid #ecf0f1;
-    border-radius: 8px;
-    box-shadow: 0 0 30px rgba(0,0,0,0.5);
-}
-
-.instructions {
-    display: flex;
-    justify-content: center;
-    gap: 40px;
-    margin-top: 15px;
-    color: #bdc3c7;
-    font-size: 0.9rem;
-}
-body {
-    background-color: #1a1a1a;
-    color: white;
     font-family: sans-serif;
     display: flex;
     flex-direction: column;
