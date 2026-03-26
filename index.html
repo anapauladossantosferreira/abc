@@ -2,27 +2,19 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Racing Survival: 5 Fases</title>
+    <title>Corrida Pro 2P</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="hud">
-        <div class="stats" id="statsP1">
-            <h2 style="color: #ff4757;">Player 1 (Setas)</h2>
-            <p>Vida: <span id="hp1">100</span>% | Pontos: <span id="score1">0</span></p>
-            <div class="hp-bar"><div id="bar1" class="fill" style="background: #ff4757;"></div></div>
+    <div id="hud">
+        <div class="player-info">
+            <span style="color: #ff4757;">P1: <span id="hp1">100</span>%</span> | 
+            <span style="color: #1e90ff;">P2: <span id="hp2">100</span>%</span>
         </div>
-        <div class="info-centro">
-            <h1 id="faseNome">FASE 1</h1>
-            <p id="msg">Chegue ao final!</p>
-        </div>
-        <div class="stats" id="statsP2">
-            <h2 style="color: #1e90ff;">Player 2 (WASD)</h2>
-            <p>Vida: <span id="hp2">100</span>% | Pontos: <span id="score2">0</span></p>
-            <div class="hp-bar"><div id="bar2" class="fill" style="background: #1e90ff;"></div></div>
-        </div>
+        <h2 id="faseTxt">Fase 1</h2>
     </div>
-    <canvas id="gameCanvas"></canvas>
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <p style="color: white;">P1: Setas + Shift | P2: WASD + Espaço</p>
     <script src="script.js"></script>
 </body>
 </html>
