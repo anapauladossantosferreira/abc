@@ -1,91 +1,79 @@
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
+// Aguarda o carregamento total da página para não dar erro de "canvas não encontrado"
+window.onload = function() {
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
 
-const teclas = {};
-window.addEventListener("keydown", e => teclas[e.key] = true);
-window.addEventListener("keyup", e => teclas[e.key] = false);
+    canvas.width = 800;
+    canvas.height = 500;
 
-class Carro {
-    constructor(x, y, cor, controles) {
-        this.x = x;
-        this.y = y;
-        this.angulo = 0; // Em radianos
-        this.velocidade = 0;
-        this.cor = cor;
-        this.controles = controles;
-        
-        // Propriedades físicas
-        this.aceleracao = 0.15;
-        this.friccao = 0.98;
-        this.velGiro = 0.05;
-    }
+    const teclas = {};
+    window.addEventListener("keydown", e => teclas[e.key.toLowerCase()] = true);
+    window.addEventListener("keyup", e => teclas[e.key.toLowerCase()] = false);
 
-    atualizar() {
-        // Acelerar / Ré
-        if (teclas[this.controles.up]) this.velocidade += this.aceleracao;
-        if (teclas[this.controles.down]) this.velocidade -= this.aceleracao;
-
-        // Girar (apenas se estiver em movimento)
-        if (Math.abs(this.velocidade) > 0.1) {
-            const direcaoGiro = this.velocidade > 0 ? 1 : -1;
-            if (teclas[this.controles.left]) this.angulo -= this.velGiro * direcaoGiro;
-            if (teclas[this.controles.right]) this.angulo += this.velGiro * direcaoGiro;
+    class Carro {
+        constructor(x, y, cor, controles) {
+            this.x = x;
+            this.y = y;
+            this.cor = cor;
+            this.controles = controles;
+            this.angulo = 0;
+            this.vel = 0;
+            this.hp = 100;
         }
 
-        // Aplicar Física
-        this.velocidade *= this.friccao;
-        this.x += Math.cos(this.angulo) * this.velocidade;
-        this.y += Math.sin(this.angulo) * this.velocidade;
+        atualizar() {
+            if (teclas[this.controles.up]) this.vel += 0.2;
+            if (teclas[this.controles.down]) this.vel -= 0.2;
+            
+            this.vel *= 0.95; // Fricção
+            
+            if (Math.abs(this.vel) > 0.2) {
+                const dir = this.vel > 0 ? 1 : -1;
+                if (teclas[this.controles.left]) this.angulo -= 0.05 * dir;
+                if (teclas[this.controles.right]) this.angulo += 0.05 * dir;
+            }
 
-        // Limites da tela (teleporte)
-        if (this.x > canvas.width) this.x = 0;
-        if (this.x < 0) this.x = canvas.width;
-        if (this.y > canvas.height) this.y = 0;
-        if (this.y < 0) this.y = canvas.height;
+            this.x += Math.cos(this.angulo) * this.vel;
+            this.y += Math.sin(this.angulo) * this.vel;
+        }
+
+        desenhar() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angulo);
+            ctx.fillStyle = this.cor;
+            ctx.fillRect(-20, -10, 40, 20); // Desenha o corpo do carro
+            ctx.fillStyle = "white"; 
+            ctx.fillRect(15, -8, 5, 4); // Farol 1
+            ctx.fillRect(15, 4, 5, 4);  // Farol 2
+            ctx.restore();
+        }
     }
 
-    desenhar() {
-        ctx.save();
-        ctx.translate(this.x, this.y);
-        ctx.rotate(this.angulo);
-        
-        // Corpo do carro
-        ctx.fillStyle = this.cor;
-        ctx.fillRect(-15, -10, 30, 20);
-        
-        // Faróis (para saber a frente)
-        ctx.fillStyle = "yellow";
-        ctx.fillRect(10, -8, 5, 4);
-        ctx.fillRect(10, 4, 5, 4);
-        
-        ctx.restore();
-    }
-}
+    // Criando os carros em posições bem visíveis no centro/esquerda
+    const p1 = new Carro(100, 150, "red", {up: "arrowup", down: "arrowdown", left: "arrowleft", right: "arrowright"});
+    const p2 = new Carro(100, 350, "cyan", {up: "w", down: "s", left: "a", right: "d"});
 
-// Criar Jogadores
-const p1 = new Carro(100, 300, "#ff4757", { up: "ArrowUp", down: "ArrowDown", left: "ArrowLeft", right: "ArrowRight" });
-const p2 = new Carro(100, 350, "#1e90ff", { up: "w", down: "s", left: "a", right: "d" });
+    function loop() {
+        // 1. Limpa a tela com uma cor de pista
+        ctx.fillStyle = "#222"; 
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-function loop() {
-    // Fundo
-    ctx.fillStyle = "#2f3542";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // 2. Desenha bordas da pista
+        ctx.strokeStyle = "white";
+        ctx.lineWidth = 5;
+        ctx.strokeRect(10, 10, canvas.width - 20, canvas.height - 20);
 
-    // Desenhar "Pista" simples
-    ctx.strokeStyle = "rgba(255,255,255,0.1)";
-    ctx.lineWidth = 2;
-    for(let i=0; i<canvas.width; i+=50) {
-        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+        // 3. Atualiza e Desenha Jogadores
+        p1.atualizar();
+        p1.desenhar();
+
+        p2.atualizar();
+        p2.desenhar();
+
+        requestAnimationFrame(loop);
     }
 
-    p1.atualizar();
-    p1.desenhar();
-
-    p2.atualizar();
-    p2.desenhar();
-
-    requestAnimationFrame(loop);
-}
-
-loop();
+    console.log("Jogo iniciado com sucesso!");
+    loop();
+};
