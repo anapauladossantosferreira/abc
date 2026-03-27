@@ -2,19 +2,15 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Corrida Pro 2P</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Corrida 2 Players</title>
+    <style>
+        body { text-align: center; background: #333; color: white; }
+        canvas { background: #555; border: 5px solid #fff; display: block; margin: 0 auto; }
+    </style>
 </head>
 <body>
-    <div id="hud">
-        <div class="player-info">
-            <span style="color: #ff4757;">P1: <span id="hp1">100</span>%</span> | 
-            <span style="color: #1e90ff;">P2: <span id="hp2">100</span>%</span>
-        </div>
-        <h2 id="faseTxt">Fase 1</h2>
-    </div>
-    <canvas id="gameCanvas" width="800" height="500"></canvas>
-    <p style="color: white;">P1: Setas + Shift | P2: WASD + Espaço</p>
+    <h1>Corrida JS: Player 1 (Setas) vs Player 2 (WASD)</h1>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
     <script src="script.js"></script>
 </body>
 </html>
