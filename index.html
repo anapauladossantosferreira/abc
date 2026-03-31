@@ -2,16 +2,27 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Corrida 2P - Fix</title>
+    <title>Racing Survival: 5 Fases</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div id="ui">
-        <h1>SUPER RACING</h1>
-        <p>P1: Setas | P2: WASD | Espaço/Shift: Nitro</p>
+    <div class="hud">
+        <div class="stats" id="statsP1">
+            <h2 style="color: #ff4757;">Player 1 (Setas)</h2>
+            <p>Vida: <span id="hp1">100</span>% | Pontos: <span id="score1">0</span></p>
+            <div class="hp-bar"><div id="bar1" class="fill" style="background: #ff4757;"></div></div>
+        </div>
+        <div class="info-centro">
+            <h1 id="faseNome">FASE 1</h1>
+            <p id="msg">Chegue ao final!</p>
+        </div>
+        <div class="stats" id="statsP2">
+            <h2 style="color: #1e90ff;">Player 2 (WASD)</h2>
+            <p>Vida: <span id="hp2">100</span>% | Pontos: <span id="score2">0</span></p>
+            <div class="hp-bar"><div id="bar2" class="fill" style="background: #1e90ff;"></div></div>
+        </div>
     </div>
     <canvas id="gameCanvas"></canvas>
-    
     <script src="script.js"></script>
 </body>
 </html>
