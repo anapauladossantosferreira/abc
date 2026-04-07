@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Racing Survival - VERSÃO ÚNICA</title>
+    <style>
+        body {
+            background-color: #111;
+            color: white;
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #hud {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            background: #222;
+            padding: 10px;
+            border-bottom: 3px solid #444;
+            text-align: center;
+        }
+        canvas {
+            background: #222;
+            border: 5px solid #333;
+            margin-top: 20px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+        .stats { width: 200px; }
+    </style>
+</head>
+<body>
+
+    <div id="hud">
+        <div class="stats">
+            <h3 style="color: #ff4757">P1 (Setas)</h3>
+            <p>Vida: <span id="hp1">100</span>% | Score: <span id="score1">0</span></p>
+        </div>
+        <div>
+            <h2 id="nomeFase">FASE 1: Aquecimento</h2>
+            <p id="msg">Chegue ao final da pista!</p>
+        </div>
+        <div class="stats">
+            <h3 style="color: #1e90ff">P2 (WASD)</h3>
+            <p>Vida: <span id="hp2">100</span>% | Score: <span id="score2">0</span></p>
+        </div>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+    window.onload = function() {
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 1000;
+        canvas.height = 500;
+
+        let faseAtual = 0;
+        let gameOver = false;
+        const teclas = {};
+
+        // Mapas Corrigidos (Fase 4 agora tem caminhos largos)
+        const mapas = [
+            { n: "FASE 1: Aquecimento", obs: [] },
+            { n: "FASE 2: Estreito", obs: [{x: 450, y: 0, w: 100, h: 200}, {x: 450, y: 300, w: 100, h: 200}] },
+            { n: "FASE 3: Zig-Zag", obs: [{x: 300, y: 0, w: 60, h: 320}, {x: 600, y: 180, w: 60, h: 320}] },
+            { n: "FASE 4: O Corredor", obs: [{x: 250, y: 0, w: 40, h: 350}, {x: 550, y: 150, w: 40, h: 350}, {x: 800, y: 0, w: 40, h: 350}] },
+            { n: "FASE 5: LABIRINTO FINAL", obs: [{x: 200, y: 100, w: 100, h: 100}, {x: 500, y: 250, w: 150, h: 40}, {x: 750, y: 0, w: 40, h: 250}, {x: 750, y: 350, w: 40, h: 150}] }
+        ];
+
+        window.addEventListener("keydown", e => teclas[e.key.toLowerCase()] = true);
+        window.addEventListener("keyup", e => teclas[e.key.toLowerCase()] = false);
+
+        class Carro {
+            constructor(x, y, cor, controles, id) {
+                this.startX = x; this.startY = y;
+                this.cor = cor; this.controles = controles; this.id = id;
+                this.score = 0;
+                this.reset();
+            }
+            reset() {
+                this.x = this.startX; this.y = this.startY;
+                this.angulo = 0; this.vel = 0; this.hp = 100;
+                this.maxVel = 7 + faseAtual;
+            }
+            atualizar() {
+                if (gameOver || this.hp <= 0) return;
+                if (teclas[this.controles.up]) this.vel += 0.25;
+                if (teclas[this.controles.down]) this.vel -= 0.15;
+                this.vel *= 0.96;
+                if (Math.abs(this.vel) > 0.4) {
+                    const dir = this.vel > 0 ? 1 : -1;
+                    if (teclas[this.controles.left]) this.angulo -= 0.06 * dir;
+                    if (teclas[this.controles.right]) this.angulo += 0.06 * dir;
+                }
+                let nx = this.x + Math.cos(this.angulo) * this.vel;
+                let ny = this.y + Math.sin(this.angulo) * this.vel;
+                let colidiu = false;
+                mapas[faseAtual].obs.forEach(o => {
+                    if (nx+10 > o.x && nx-10 < o.x+o.w && ny+10 > o.y && ny-10 < o.y+o.h) colidiu = true;
+                });
+                if (nx < 10 || nx > canvas.width-10 || ny < 10 || ny > canvas.height-10) colidiu = true;
+                if (colidiu) {
+                    this.hp -= 2; this.vel = -this.vel * 0.5;
+                } else {
+                    this.x = nx; this.y = ny;
+                }
+                if (this.x > canvas.width - 25) vencerFase(this);
+            }
+            desenhar() {
+                if (this.hp <= 0) return;
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angulo);
+                ctx.fillStyle = this.cor;
+                ctx.fillRect(-20, -10, 40, 20);
+                ctx.fillStyle = "white";
+                ctx.fillRect(12, -8, 6, 4); ctx.fillRect(12, 4, 6, 4);
+                ctx.restore();
+            }
+        }
+
+        const p1 = new Carro(60, 150, "#ff4757", {up: "arrowup", down: "arrowdown", left: "arrowleft", right: "arrowright"}, 1);
+        const p2 = new Carro(60, 350, "#1e90ff", {up: "w", down: "s", left: "a", right: "d"}, 2);
+
+        function vencerFase(quem) {
+            quem.score += 100;
+            faseAtual++;
+            if (faseAtual >= mapas.length) {
+                gameOver = true;
+                document.getElementById("nomeFase").innerText = "VITÓRIA FINAL!";
+            } else {
+                p1.reset(); p2.reset();
+                document.getElementById("nomeFase").innerText = mapas[faseAtual].n;
+            }
+        }
+
+        function loop() {
+            ctx.fillStyle = "#1a1a1a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "gold";
+            ctx.fillRect(canvas.width - 15, 0, 15, canvas.height);
+            ctx.fillStyle = "#444";
+            mapas[faseAtual].obs.forEach(o => { ctx.fillRect(o.x, o.y, o.w, o.h); });
+
+            p1.atualizar(); p1.desenhar();
+            p2.atualizar(); p2.desenhar();
+
+            document.getElementById("hp1").innerText = p1.hp;
+            document.getElementById("hp2").innerText = p2.hp;
+            document.getElementById("score1").innerText = p1.score;
+            document.getElementById("score2").innerText = p2.score;
+
+            if (!gameOver) requestAnimationFrame(loop);
+        }
+        loop();
+    };
+    </script>
+</body>
+</html>
