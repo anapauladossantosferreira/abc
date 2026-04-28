@@ -151,4 +151,81 @@
                 }
                 // Colisão P2
                 if (checkCollision(p2, obs)) {
-                    p2.score = Math.max(0, p2.score
+                    p2.score = Math.max(0, p2.score - 5);
+                    obstacles.splice(index, 1);
+                }
+
+                if (obs.y > canvas.height) obstacles.splice(index, 1);
+            });
+
+            p1.score += speed / 15;
+            p2.score += speed / 15;
+
+            // Níveis
+            if (Math.max(p1.score, p2.score) > level * 1500 && level < 5) {
+                level++;
+                speed += 3;
+                document.getElementById('level').innerText = level;
+            }
+
+            roadOffset += speed;
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        function checkCollision(car, obs) {
+            return car.x < obs.x + obs.w && car.x + car.w > obs.x &&
+                   car.y < obs.y + obs.h && car.y + car.h > obs.y;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Grama e Estrada
+            ctx.fillStyle = "#1a5e1a";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#333";
+            ctx.fillRect(40, 0, canvas.width - 80, canvas.height);
+
+            // Linhas
+            ctx.strokeStyle = "#fff";
+            ctx.setLineDash([40, 40]);
+            ctx.lineDashOffset = -roadOffset;
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+
+            // Obstáculos
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.type === 'cone' ? '#ff6600' : '#888';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "black";
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                ctx.shadowBlur = 0;
+            });
+
+            // Desenhar Carros Melhorados
+            drawCar(car1Img, p1);
+            drawCar(car2Img, p2);
+
+            document.getElementById('p1-score').innerText = Math.floor(p1.score);
+            document.getElementById('p2-score').innerText = Math.floor(p2.score);
+        }
+
+        function drawCar(img, car) {
+            ctx.save();
+            ctx.translate(car.x + car.w/2, car.y + car.h/2);
+            ctx.rotate(car.tilt);
+            
+            // Sombra projetada
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowOffsetY = 10;
+            
+            ctx.drawImage(img, -car.w/2, -car.h/2, car.w, car.h);
+            ctx.restore();
+        }
+    </script>
+</body>
+</html>
