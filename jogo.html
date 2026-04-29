@@ -82,11 +82,11 @@
         
         <canvas id="gameCanvas"></canvas>
 
-        <div id="msg-overlay" id="start-screen">
+       <div id="msg-overlay">
             <h1 id="title">SPEED MASTERS</h1>
             <p>P1: W,A,S,D | P2: SETAS</p>
             <p id="sub-msg">Vença as 5 etapas da competição!</p>
-            <button onclick="startGame()">INICIAR CORRIDA</button>
+            <button id="start-btn" onclick="startGame()">INICIAR CORRIDA</button>
         </div>
     </div>
 
@@ -104,30 +104,35 @@
         let speed = 8;
         const keys = {};
 
-        // Cores das fases (Grama e Pista)
         const themes = [
-            { grass: "#2d5a27", road: "#333" }, // Fase 1: Campo
-            { grass: "#c2b280", road: "#444" }, // Fase 2: Deserto
-            { grass: "#1e3d59", road: "#222" }, // Fase 3: Noite/Cidade
-            { grass: "#a8dadc", road: "#3d405b"}, // Fase 4: Neve
-            { grass: "#457b9d", road: "#1d3557"}  // Fase 5: Final Pro
+            { grass: "#2d5a27", road: "#333" },
+            { grass: "#c2b280", road: "#444" },
+            { grass: "#1e3d59", road: "#222" },
+            { grass: "#a8dadc", road: "#3d405b"},
+            { grass: "#457b9d", road: "#1d3557"}
         ];
 
-        // Carregamento de Carros Reais
         const car1Img = new Image();
-        car1Img.src = 'https://i.imgur.com/vH0HhU9.png'; // Carro Esportivo Vermelho
+        car1Img.src = 'https://i.imgur.com/vH0HhU9.png';
         const car2Img = new Image();
-        car2Img.src = 'https://i.imgur.com/Bf0NnO5.png'; // Carro Esportivo Azul
+        car2Img.src = 'https://i.imgur.com/Bf0NnO5.png';
 
         const p1 = { x: 150, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
         const p2 = { x: 550, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
 
-        window.addEventListener('keydown', e => keys[e.code] = true);
+        window.addEventListener('keydown', e => {
+            keys[e.code] = true;
+            // Também permite iniciar com a tecla ESPAÇO
+            if (e.code === 'Space' && !gameActive) startGame();
+        });
         window.addEventListener('keyup', e => keys[e.code] = false);
 
+        // FUNÇÃO DE INÍCIO CORRIGIDA
         function startGame() {
+            if (gameActive) return; // Evita iniciar múltiplos loops
             gameActive = true;
-            msgOverlay.style.display = 'none';
+            msgOverlay.style.visibility = 'hidden'; // Usa visibility para garantir que suma
+            msgOverlay.style.opacity = '0';
             update();
         }
 
@@ -136,25 +141,19 @@
 
             let moveSpeed = 7 + (level * 1);
 
-            // Controles P1
-            p1.tilt = 0;
             if (keys['KeyW'] && p1.y > 20) p1.y -= moveSpeed;
             if (keys['KeyS'] && p1.y < canvas.height - 190) p1.y += moveSpeed;
             if (keys['KeyA'] && p1.x > 60) { p1.x -= moveSpeed; p1.tilt = -0.04; }
             if (keys['KeyD'] && p1.x < canvas.width/2 - 110) { p1.x += moveSpeed; p1.tilt = 0.04; }
 
-            // Controles P2
-            p2.tilt = 0;
             if (keys['ArrowUp'] && p2.y > 20) p2.y -= moveSpeed;
             if (keys['ArrowDown'] && p2.y < canvas.height - 190) p2.y += moveSpeed;
             if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 10) { p2.x -= moveSpeed; p2.tilt = -0.04; }
             if (keys['ArrowRight'] && p2.x < canvas.width - 160) { p2.x += moveSpeed; p2.tilt = 0.04; }
 
-            // Progresso
             p1.score += speed / 20;
             p2.score += speed / 20;
 
-            // Lógica de Fases
             let topScore = Math.max(p1.score, p2.score);
             if (topScore > level * 2000 && level < 5) {
                 level++;
@@ -174,28 +173,22 @@
 
         function gameWin() {
             gameActive = false;
-            msgOverlay.style.display = 'block';
+            msgOverlay.style.visibility = 'visible';
+            msgOverlay.style.opacity = '1';
             document.getElementById('title').innerText = "CORRIDA FINALIZADA!";
             document.getElementById('sub-msg').innerText = p1.score > p2.score ? "JOGADOR 1 VENCEU!" : "JOGADOR 2 VENCEU!";
+            document.getElementById('start-btn').innerText = "JOGAR NOVAMENTE";
         }
 
         function draw() {
             const theme = themes[level - 1];
-            
-            // Grama Lateral
             ctx.fillStyle = theme.grass;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // Pista Principal
             ctx.fillStyle = theme.road;
             ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
-
-            // Faixas Brancas Laterais
             ctx.fillStyle = "#FFF";
             ctx.fillRect(55, 0, 10, canvas.height);
             ctx.fillRect(canvas.width - 65, 0, 10, canvas.height);
-
-            // Linha Divisória Central
             ctx.strokeStyle = "#ffcc00";
             ctx.lineWidth = 6;
             ctx.setLineDash([60, 40]);
@@ -205,7 +198,6 @@
             ctx.lineTo(canvas.width/2, canvas.height);
             ctx.stroke();
 
-            // Desenhar Carros
             renderCar(car1Img, p1);
             renderCar(car2Img, p2);
 
@@ -217,25 +209,16 @@
             ctx.save();
             ctx.translate(car.x + car.w/2, car.y + car.h/2);
             ctx.rotate(car.tilt);
-            
-            // Sombra para realismo
             ctx.shadowBlur = 20;
             ctx.shadowColor = "rgba(0,0,0,0.4)";
             ctx.shadowOffsetY = 15;
-            
             ctx.drawImage(img, -car.w/2, -car.h/2, car.w, car.h);
             ctx.restore();
         }
 
-        // Pré-render inicial
-        car1Img.onload = () => draw();
-    </script>
-</body>
-</html> <!DOCTYPE html>
-<html lang="pt-br">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Speed Masters - Corrigido</title>
-    <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100
+        // Desenha a primeira tela assim que as imagens carregarem
+        window.onload = () => {
+            draw();
+        };
+    </script> 
+    
