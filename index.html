@@ -82,6 +82,90 @@
         
         <canvas id="gameCanvas"></canvas>
 
+        <!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gran Turismo JS - 5 Fases</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Segoe UI', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #game-container {
+            position: relative;
+            box-shadow: 0 0 100px rgba(255,255,255,0.1);
+            border: 10px solid #222;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            color: #fff;
+            z-index: 10;
+            font-weight: 900;
+            letter-spacing: 2px;
+        }
+
+        .stats {
+            background: rgba(0,0,0,0.8);
+            padding: 10px 25px;
+            border-radius: 5px;
+            border-bottom: 3px solid #ff0000;
+        }
+
+        #msg-overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            background: rgba(0,0,0,0.95);
+            padding: 50px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            z-index: 20;
+        }
+
+        button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { background: #b30000; }
+        canvas { display: block; }
+        span { color: #ff0000; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui">
+            <div class="stats">FASE: <span id="level">1</span>/5</div>
+            <div class="stats">P1: <span id="p1-score">0</span>km</div>
+            <div class="stats">P2: <span id="p2-score">0</span>km</div>
+        </div>
+        
+        <canvas id="gameCanvas"></canvas>
+
         <div id="msg-overlay" id="start-screen">
             <h1 id="title">SPEED MASTERS</h1>
             <p>P1: W,A,S,D | P2: SETAS</p>
