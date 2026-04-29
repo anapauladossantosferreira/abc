@@ -184,3 +184,51 @@
             
             // Grama Lateral
             ctx.fillStyle = theme.grass;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Pista Principal
+            ctx.fillStyle = theme.road;
+            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
+
+            // Faixas Brancas Laterais
+            ctx.fillStyle = "#FFF";
+            ctx.fillRect(55, 0, 10, canvas.height);
+            ctx.fillRect(canvas.width - 65, 0, 10, canvas.height);
+
+            // Linha Divisória Central
+            ctx.strokeStyle = "#ffcc00";
+            ctx.lineWidth = 6;
+            ctx.setLineDash([60, 40]);
+            ctx.lineDashOffset = -roadOffset;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width/2, 0);
+            ctx.lineTo(canvas.width/2, canvas.height);
+            ctx.stroke();
+
+            // Desenhar Carros
+            renderCar(car1Img, p1);
+            renderCar(car2Img, p2);
+
+            document.getElementById('p1-score').innerText = Math.floor(p1.score);
+            document.getElementById('p2-score').innerText = Math.floor(p2.score);
+        }
+
+        function renderCar(img, car) {
+            ctx.save();
+            ctx.translate(car.x + car.w/2, car.y + car.h/2);
+            ctx.rotate(car.tilt);
+            
+            // Sombra para realismo
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "rgba(0,0,0,0.4)";
+            ctx.shadowOffsetY = 15;
+            
+            ctx.drawImage(img, -car.w/2, -car.h/2, car.w, car.h);
+            ctx.restore();
+        }
+
+        // Pré-render inicial
+        car1Img.onload = () => draw();
+    </script>
+</body>
+</html>
