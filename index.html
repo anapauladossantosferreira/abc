@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Super Racing Realist - 2 Players & Obstacles</title>
+    <title>Gran Turismo JS - 5 Fases</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: #111;
-            font-family: 'Arial Black', sans-serif;
+            background: #000;
+            font-family: 'Segoe UI', sans-serif;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -18,27 +18,27 @@
 
         #game-container {
             position: relative;
-            box-shadow: 0 0 100px rgba(0,0,0,1);
-            border: 6px solid #333;
-            background: #222;
+            box-shadow: 0 0 100px rgba(255,255,255,0.1);
+            border: 10px solid #222;
         }
 
         #ui {
             position: absolute;
-            top: 15px;
+            top: 20px;
             width: 100%;
             display: flex;
             justify-content: space-around;
             color: #fff;
             z-index: 10;
-            pointer-events: none;
+            font-weight: 900;
+            letter-spacing: 2px;
         }
 
         .stats {
-            background: rgba(0,0,0,0.6);
-            padding: 10px 20px;
-            border-radius: 30px;
-            border: 1px solid #555;
+            background: rgba(0,0,0,0.8);
+            padding: 10px 25px;
+            border-radius: 5px;
+            border-bottom: 3px solid #ff0000;
         }
 
         #msg-overlay {
@@ -48,33 +48,45 @@
             transform: translate(-50%, -50%);
             color: white;
             text-align: center;
-            background: rgba(0,0,0,0.9);
-            padding: 40px;
-            border-radius: 20px;
-            border: 3px solid #ff3300;
+            background: rgba(0,0,0,0.95);
+            padding: 50px;
+            border-radius: 5px;
+            border: 1px solid #444;
             z-index: 20;
         }
 
+        button {
+            background: #ff0000;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover { background: #b30000; }
         canvas { display: block; }
-        span { color: #00ff00; }
+        span { color: #ff0000; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
         <div id="ui">
-            <div class="stats">LEVEL: <span id="level">1</span></div>
-            <div class="stats">P1: <span id="p1-score">0</span>m</div>
-            <div class="stats">P2: <span id="p2-score">0</span>m</div>
+            <div class="stats">FASE: <span id="level">1</span>/5</div>
+            <div class="stats">P1: <span id="p1-score">0</span>km</div>
+            <div class="stats">P2: <span id="p2-score">0</span>km</div>
         </div>
         
         <canvas id="gameCanvas"></canvas>
 
         <div id="msg-overlay" id="start-screen">
-            <h1>RACING TURBO</h1>
+            <h1 id="title">SPEED MASTERS</h1>
             <p>P1: W,A,S,D | P2: SETAS</p>
-            <p style="color: #ffcc00">CUIDADO COM OS OBSTÁCULOS!</p>
-            <button onclick="startGame()" style="padding: 15px 30px; cursor: pointer; font-weight: bold;">LARGADA!</button>
+            <p id="sub-msg">Vença as 5 etapas da competição!</p>
+            <button onclick="startGame()">INICIAR CORRIDA</button>
         </div>
     </div>
 
@@ -83,22 +95,32 @@
         const ctx = canvas.getContext('2d');
         const msgOverlay = document.getElementById('msg-overlay');
 
-        canvas.width = 700;
+        canvas.width = 800;
         canvas.height = window.innerHeight * 0.95;
 
         let gameActive = false;
         let level = 1;
         let roadOffset = 0;
-        let speed = 7;
-        let obstacles = [];
+        let speed = 8;
         const keys = {};
 
-        // Imagens
-        const car1Img = new Image(); car1Img.src = 'https://i.imgur.com/vH0HhU9.png';
-        const car2Img = new Image(); car2Img.src = 'https://i.imgur.com/Bf0NnO5.png';
+        // Cores das fases (Grama e Pista)
+        const themes = [
+            { grass: "#2d5a27", road: "#333" }, // Fase 1: Campo
+            { grass: "#c2b280", road: "#444" }, // Fase 2: Deserto
+            { grass: "#1e3d59", road: "#222" }, // Fase 3: Noite/Cidade
+            { grass: "#a8dadc", road: "#3d405b"}, // Fase 4: Neve
+            { grass: "#457b9d", road: "#1d3557"}  // Fase 5: Final Pro
+        ];
 
-        const p1 = { x: 120, y: canvas.height - 200, w: 85, h: 150, score: 0, tilt: 0 };
-        const p2 = { x: 480, y: canvas.height - 200, w: 85, h: 150, score: 0, tilt: 0 };
+        // Carregamento de Carros Reais
+        const car1Img = new Image();
+        car1Img.src = 'https://i.imgur.com/vH0HhU9.png'; // Carro Esportivo Vermelho
+        const car2Img = new Image();
+        car2Img.src = 'https://i.imgur.com/Bf0NnO5.png'; // Carro Esportivo Azul
+
+        const p1 = { x: 150, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
+        const p2 = { x: 550, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
 
         window.addEventListener('keydown', e => keys[e.code] = true);
         window.addEventListener('keyup', e => keys[e.code] = false);
@@ -106,66 +128,43 @@
         function startGame() {
             gameActive = true;
             msgOverlay.style.display = 'none';
-            spawnObstacle();
             update();
-        }
-
-        function spawnObstacle() {
-            if (!gameActive) return;
-            const lane = Math.random() > 0.5 ? 80 : 420;
-            obstacles.push({
-                x: lane + Math.random() * 150,
-                y: -100,
-                w: 50,
-                h: 50,
-                type: Math.random() > 0.5 ? 'cone' : 'block'
-            });
-            setTimeout(spawnObstacle, 2000 / (level * 0.5));
         }
 
         function update() {
             if (!gameActive) return;
 
-            // Movimento P1
+            let moveSpeed = 7 + (level * 1);
+
+            // Controles P1
             p1.tilt = 0;
-            if (keys['KeyW'] && p1.y > 50) p1.y -= 6;
-            if (keys['KeyS'] && p1.y < canvas.height - 160) p1.y += 6;
-            if (keys['KeyA'] && p1.x > 50) { p1.x -= 8; p1.tilt = -0.05; }
-            if (keys['KeyD'] && p1.x < canvas.width/2 - 100) { p1.x += 8; p1.tilt = 0.05; }
+            if (keys['KeyW'] && p1.y > 20) p1.y -= moveSpeed;
+            if (keys['KeyS'] && p1.y < canvas.height - 190) p1.y += moveSpeed;
+            if (keys['KeyA'] && p1.x > 60) { p1.x -= moveSpeed; p1.tilt = -0.04; }
+            if (keys['KeyD'] && p1.x < canvas.width/2 - 110) { p1.x += moveSpeed; p1.tilt = 0.04; }
 
-            // Movimento P2
+            // Controles P2
             p2.tilt = 0;
-            if (keys['ArrowUp'] && p2.y > 50) p2.y -= 6;
-            if (keys['ArrowDown'] && p2.y < canvas.height - 160) p2.y += 6;
-            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 20) { p2.x -= 8; p2.tilt = -0.05; }
-            if (keys['ArrowRight'] && p2.x < canvas.width - 130) { p2.x += 8; p2.tilt = 0.05; }
+            if (keys['ArrowUp'] && p2.y > 20) p2.y -= moveSpeed;
+            if (keys['ArrowDown'] && p2.y < canvas.height - 190) p2.y += moveSpeed;
+            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 10) { p2.x -= moveSpeed; p2.tilt = -0.04; }
+            if (keys['ArrowRight'] && p2.x < canvas.width - 160) { p2.x += moveSpeed; p2.tilt = 0.04; }
 
-            // Obstáculos e Colisão
-            obstacles.forEach((obs, index) => {
-                obs.y += speed;
-                
-                // Colisão P1
-                if (checkCollision(p1, obs)) {
-                    p1.score = Math.max(0, p1.score - 5);
-                    obstacles.splice(index, 1);
-                }
-                // Colisão P2
-                if (checkCollision(p2, obs)) {
-                    p2.score = Math.max(0, p2.score - 5);
-                    obstacles.splice(index, 1);
-                }
+            // Progresso
+            p1.score += speed / 20;
+            p2.score += speed / 20;
 
-                if (obs.y > canvas.height) obstacles.splice(index, 1);
-            });
-
-            p1.score += speed / 15;
-            p2.score += speed / 15;
-
-            // Níveis
-            if (Math.max(p1.score, p2.score) > level * 1500 && level < 5) {
+            // Lógica de Fases
+            let topScore = Math.max(p1.score, p2.score);
+            if (topScore > level * 2000 && level < 5) {
                 level++;
-                speed += 3;
+                speed += 5;
                 document.getElementById('level').innerText = level;
+            }
+
+            if (topScore >= 10000) {
+                gameWin();
+                return;
             }
 
             roadOffset += speed;
@@ -173,59 +172,15 @@
             requestAnimationFrame(update);
         }
 
-        function checkCollision(car, obs) {
-            return car.x < obs.x + obs.w && car.x + car.w > obs.x &&
-                   car.y < obs.y + obs.h && car.y + car.h > obs.y;
+        function gameWin() {
+            gameActive = false;
+            msgOverlay.style.display = 'block';
+            document.getElementById('title').innerText = "CORRIDA FINALIZADA!";
+            document.getElementById('sub-msg').innerText = p1.score > p2.score ? "JOGADOR 1 VENCEU!" : "JOGADOR 2 VENCEU!";
         }
 
         function draw() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const theme = themes[level - 1];
             
-            // Grama e Estrada
-            ctx.fillStyle = "#1a5e1a";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#333";
-            ctx.fillRect(40, 0, canvas.width - 80, canvas.height);
-
-            // Linhas
-            ctx.strokeStyle = "#fff";
-            ctx.setLineDash([40, 40]);
-            ctx.lineDashOffset = -roadOffset;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(canvas.width/2, 0); ctx.lineTo(canvas.width/2, canvas.height);
-            ctx.stroke();
-
-            // Obstáculos
-            obstacles.forEach(obs => {
-                ctx.fillStyle = obs.type === 'cone' ? '#ff6600' : '#888';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = "black";
-                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-                ctx.shadowBlur = 0;
-            });
-
-            // Desenhar Carros Melhorados
-            drawCar(car1Img, p1);
-            drawCar(car2Img, p2);
-
-            document.getElementById('p1-score').innerText = Math.floor(p1.score);
-            document.getElementById('p2-score').innerText = Math.floor(p2.score);
-        }
-
-        function drawCar(img, car) {
-            ctx.save();
-            ctx.translate(car.x + car.w/2, car.y + car.h/2);
-            ctx.rotate(car.tilt);
-            
-            // Sombra projetada
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
-            ctx.shadowOffsetY = 10;
-            
-            ctx.drawImage(img, -car.w/2, -car.h/2, car.w, car.h);
-            ctx.restore();
-        }
-    </script>
-</body>
-</html>
+            // Grama Lateral
+            ctx.fillStyle = theme.grass;
