@@ -3,129 +3,173 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Racing Masters - Versão Estável</title>
+    <title>Ultimate Racing - 5 Stages</title>
     <style>
-        body {
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #000;
-            font-family: sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #game-container {
-            position: relative;
-            border: 5px solid #333;
-            background: #222;
-            line-height: 0;
-        }
-
-        #ui {
-            position: absolute;
-            top: 10px;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-            color: #fff;
-            z-index: 10;
-            pointer-events: none;
-            font-weight: bold;
-            text-shadow: 2px 2px #000;
-        }
-
-        #msg-overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.85);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            color: white;
-            z-index: 100;
-            text-align: center;
-        }
-
-        button {
-            padding: 20px 50px;
-            font-size: 24px;
-            background: #ff0000;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-weight: bold;
-            margin-top: 20px;
-            transition: transform 0.2s;
-        }
-
-        button:hover { transform: scale(1.1); background: #cc0000; }
-        
-        canvas { display: block; }
-        .score-val { color: #ff0; }
+        body { margin: 0; overflow: hidden; background: #111; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        #game-container { position: relative; border: 4px solid #444; box-shadow: 0 0 50px #000; }
+        #ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; color: #fff; z-index: 10; pointer-events: none; text-shadow: 2px 2px #000; }
+        #msg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; text-align: center; }
+        button { padding: 15px 40px; font-size: 20px; background: #ff3300; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { transform: scale(1.1); background: #ff5500; }
+        .stat-box { background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; border: 1px solid #555; }
+        canvas { display: block; background: #222; }
     </style>
 </head>
 <body>
 
     <div id="game-container">
         <div id="ui">
-            <div>FASE: <span id="level-txt">1</span>/5</div>
-            <div>P1: <span id="p1-txt" class="score-val">0</span>m</div>
-            <div>P2: <span id="p2-txt" class="score-val">0</span>m</div>
+            <div class="stat-box">FASE: <span id="level-txt">1</span>/5</div>
+            <div class="stat-box">P1: <span id="p1-txt">0</span></div>
+            <div class="stat-box">P2: <span id="p2-txt">0</span></div>
+            <div class="stat-box">META: <span id="goal-txt">1000</span></div>
         </div>
         
         <div id="msg-overlay">
-            <h1>RACING MASTERS</h1>
-            <p>P1: [W, A, S, D] | P2: [SETAS]</p>
-            <button id="btn-start">INICIAR CORRIDA</button>
+            <h1 id="main-title">RACING REALIST</h1>
+            <p id="sub-title">P1: [W,A,S,D] | P2: [SETAS]<br>Desvie dos obstáculos para avançar!</p>
+            <button id="btn-start">LARGADA</button>
         </div>
 
         <canvas id="gameCanvas"></canvas>
     </div>
 
     <script>
-        // Configurações e Elementos
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const overlay = document.getElementById('msg-overlay');
         const btn = document.getElementById('btn-start');
 
         canvas.width = 800;
-        canvas.height = window.innerHeight * 0.9;
+        canvas.height = window.innerHeight * 0.95;
 
         let gameActive = false;
         let level = 1;
         let roadOffset = 0;
-        let speed = 8;
+        let speed = 7;
+        let obstacles = [];
         const keys = {};
 
-        // Carros
-        const p1 = { x: 150, y: canvas.height - 250, w: 90, h: 170, score: 0, color: 'red' };
-        const p2 = { x: 550, y: canvas.height - 250, w: 90, h: 170, score: 0, color: 'blue' };
+        // Carregamento de imagens realistas
+        const car1Img = new Image(); car1Img.src = 'https://i.imgur.com/vH0HhU9.png'; // Vermelho
+        const car2Img = new Image(); car2Img.src = 'https://i.imgur.com/Bf0NnO5.png'; // Azul
 
-        // Carregar imagens com garantia de erro
-        const car1Img = new Image(); car1Img.src = 'https://i.imgur.com/vH0HhU9.png';
-        const car2Img = new Image(); car2Img.src = 'https://i.imgur.com/Bf0NnO5.png';
+        const p1 = { x: 150, y: canvas.height - 200, w: 85, h: 160, score: 0, color: 'red' };
+        const p2 = { x: 550, y: canvas.height - 200, w: 85, h: 160, score: 0, color: 'blue' };
 
-        // Escuta de teclado
         window.addEventListener('keydown', e => keys[e.code] = true);
         window.addEventListener('keyup', e => keys[e.code] = false);
 
-        // Função de Início (Vinculada via addEventListener para ser mais segura)
-        btn.addEventListener('click', () => {
-            if (!gameActive) {
-                gameActive = true;
-                overlay.style.display = 'none';
-                loop();
+        btn.addEventListener('click', startGame);
+
+        function startGame() {
+            gameActive = true;
+            overlay.style.display = 'none';
+            resetPlayers();
+            level = 1;
+            speed = 7;
+            obstacles = [];
+            spawnObstacles();
+            loop();
+        }
+
+        function resetPlayers() {
+            p1.y = canvas.height - 200; p1.score = 0;
+            p2.y = canvas.height - 200; p2.score = 0;
+        }
+
+        function spawnObstacles() {
+            if (!gameActive) return;
+            // Cria um obstáculo (bloco simulando outro veículo/barreira)
+            const lane = Math.random() < 0.5 ? (80 + Math.random() * 200) : (450 + Math.random() * 200);
+            obstacles.push({ x: lane, y: -200, w: 70, h: 120, color: '#f39c12' });
+            
+            // Frequência aumenta com o nível
+            setTimeout(spawnObstacles, 2000 - (level * 250));
+        }
+
+        function checkCollision(a, b) {
+            return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+        }
+
+        function update() {
+            let mSpeed = 6 + level;
+            const goal = level * 1000;
+            document.getElementById('goal-txt').innerText = goal;
+
+            // Movimento
+            if (keys['KeyW'] && p1.y > 0) p1.y -= mSpeed;
+            if (keys['KeyS'] && p1.y < canvas.height - p1.h) p1.y += mSpeed;
+            if (keys['KeyA'] && p1.x > 60) p1.x -= mSpeed;
+            if (keys['KeyD'] && p1.x < canvas.width/2 - 100) p1.x += mSpeed;
+
+            if (keys['ArrowUp'] && p2.y > 0) p2.y -= mSpeed;
+            if (keys['ArrowDown'] && p2.y < canvas.height - p2.h) p2.y += mSpeed;
+            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 20) p2.x -= mSpeed;
+            if (keys['ArrowRight'] && p2.x < canvas.width - 150) p2.x += mSpeed;
+
+            p1.score += 1; p2.score += 1;
+
+            // Obstáculos e Colisão
+            obstacles.forEach((obs, index) => {
+                obs.y += speed;
+                if (checkCollision(p1, obs) || checkCollision(p2, obs)) {
+                    gameOver("VOCÊ BATEU!");
+                }
+                if (obs.y > canvas.height) obstacles.splice(index, 1);
+            });
+
+            // Lógica de Passar de Fase
+            if (p1.score >= goal || p2.score >= goal) {
+                if (level < 5) {
+                    level++;
+                    speed += 3;
+                    obstacles = [];
+                    document.getElementById('level-txt').innerText = level;
+                } else {
+                    gameOver("CAMPEÃO DAS 5 FASES!");
+                }
             }
-        });
+
+            roadOffset += speed;
+            document.getElementById('p1-txt').innerText = p1.score;
+            document.getElementById('p2-txt').innerText = p2.score;
+        }
+
+        function gameOver(text) {
+            gameActive = false;
+            overlay.style.display = 'flex';
+            document.getElementById('main-title').innerText = text;
+            document.getElementById('btn-start').innerText = "TENTAR NOVAMENTE";
+        }
+
+        function draw() {
+            // Estrada (Cores mudam por fase)
+            const grassColors = ["#1a5e1a", "#2e7d32", "#c2b280", "#455a64", "#263238"];
+            ctx.fillStyle = grassColors[level-1];
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = "#333";
+            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
+
+            // Linhas
+            ctx.strokeStyle = "#fff"; ctx.setLineDash([40, 40]);
+            ctx.lineDashOffset = -roadOffset; ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.stroke();
+
+            // Obstáculos (Desenhados como caixas metálicas)
+            obstacles.forEach(obs => {
+                ctx.fillStyle = obs.color;
+                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                ctx.strokeStyle = "#000"; ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+            });
+
+            // Carros
+            if (car1Img.complete) ctx.drawImage(car1Img, p1.x, p1.y, p1.w, p1.h);
+            if (car2Img.complete) ctx.drawImage(car2Img, p2.x, p2.y, p2.w, p2.h);
+        }
 
         function loop() {
             if (!gameActive) return;
@@ -134,80 +178,6 @@
             requestAnimationFrame(loop);
         }
 
-        function update() {
-            let mSpeed = 7 + level;
-
-            // Movimento P1
-            if (keys['KeyW'] && p1.y > 0) p1.y -= mSpeed;
-            if (keys['KeyS'] && p1.y < canvas.height - p1.h) p1.y += mSpeed;
-            if (keys['KeyA'] && p1.x > 60) p1.x -= mSpeed;
-            if (keys['KeyD'] && p1.x < canvas.width/2 - 100) p1.x += mSpeed;
-
-            // Movimento P2
-            if (keys['ArrowUp'] && p2.y > 0) p2.y -= mSpeed;
-            if (keys['ArrowDown'] && p2.y < canvas.height - p2.h) p2.y += mSpeed;
-            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 10) p2.x -= mSpeed;
-            if (keys['ArrowRight'] && p2.x < canvas.width - 150) p2.x += mSpeed;
-
-            p1.score += speed / 20;
-            p2.score += speed / 20;
-
-            // Níveis
-            let maxScore = Math.max(p1.score, p2.score);
-            if (maxScore > level * 2000 && level < 5) {
-                level++;
-                speed += 4;
-                document.getElementById('level-txt').innerText = level;
-            }
-
-            roadOffset += speed;
-            
-            document.getElementById('p1-txt').innerText = Math.floor(p1.score);
-            document.getElementById('p2-txt').innerText = Math.floor(p2.score);
-        }
-
-        function draw() {
-            // Fundo/Pista
-            ctx.fillStyle = "#1a5e1a"; // Grama
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#333"; // Asfalto
-            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
-
-            // Linha central animada
-            ctx.strokeStyle = "#fff";
-            ctx.setLineDash([40, 40]);
-            ctx.lineDashOffset = -roadOffset;
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0);
-            ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.stroke();
-
-            // Desenhar Carros
-            drawPlayer(p1, car1Img);
-            drawPlayer(p2, car2Img);
-        }
-
-        function drawPlayer(p, img) {
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = "black";
-            
-            // Tenta desenhar imagem, se falhar desenha retângulo
-            try {
-                if (img.complete && img.naturalWidth !== 0) {
-                    ctx.drawImage(img, p.x, p.y, p.w, p.h);
-                } else {
-                    ctx.fillStyle = p.color;
-                    ctx.fillRect(p.x, p.y, p.w, p.h);
-                }
-            } catch (e) {
-                ctx.fillStyle = p.color;
-                ctx.fillRect(p.x, p.y, p.w, p.h);
-            }
-            ctx.shadowBlur = 0;
-        }
-
-        // Desenhar estado inicial parado
         window.onload = draw;
     </script>
 </body>
