@@ -2,223 +2,208 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gran Turismo JS - 5 Fases</title>
+    <title>Deep Space Survival</title>
     <style>
         body {
             margin: 0;
             overflow: hidden;
-            background: #000;
-            font-family: 'Segoe UI', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #game-container {
-            position: relative;
-            box-shadow: 0 0 100px rgba(255,255,255,0.1);
-            border: 10px solid #222;
+            background: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
         }
 
         #ui {
             position: absolute;
             top: 20px;
-            width: 100%;
-            display: flex;
-            justify-content: space-around;
-            color: #fff;
-            z-index: 10;
-            font-weight: 900;
-            letter-spacing: 2px;
+            left: 20px;
+            pointer-events: none;
         }
 
-        .stats {
-            background: rgba(0,0,0,0.8);
-            padding: 10px 25px;
-            border-radius: 5px;
-            border-bottom: 3px solid #ff0000;
-        }
+        .stat { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        #score { color: #00d4ff; }
 
-        #msg-overlay {
+        #game-over {
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            color: white;
             text-align: center;
-            background: rgba(0,0,0,0.95);
-            padding: 50px;
-            border-radius: 5px;
-            border: 1px solid #444;
-            z-index: 20;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 2px solid #ff0055;
+            display: none;
         }
 
         button {
-            background: #ff0000;
+            padding: 10px 30px;
+            font-size: 18px;
+            background: #ff0055;
             color: white;
             border: none;
-            padding: 15px 40px;
-            font-size: 1.2rem;
-            font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
+            border-radius: 5px;
         }
-
-        button:hover { background: #b30000; }
-        canvas { display: block; }
-        span { color: #ff0000; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div id="ui">
-            <div class="stats">FASE: <span id="level">1</span>/5</div>
-            <div class="stats">P1: <span id="p1-score">0</span>km</div>
-            <div class="stats">P2: <span id="p2-score">0</span>km</div>
-        </div>
-        
-        <canvas id="gameCanvas"></canvas>
-
-       <div id="msg-overlay">
-            <h1 id="title">SPEED MASTERS</h1>
-            <p>P1: W,A,S,D | P2: SETAS</p>
-            <p id="sub-msg">Vença as 5 etapas da competição!</p>
-            <button id="start-btn" onclick="startGame()">INICIAR CORRIDA</button>
-        </div>
+    <div id="ui">
+        <div class="stat">SCORE: <span id="score">0</span></div>
     </div>
+
+    <div id="game-over">
+        <h1>NAVE DESTRUÍDA!</h1>
+        <p>Pontuação Final: <span id="final-score">0</span></p>
+        <button onclick="resetGame()">REINICIAR</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const msgOverlay = document.getElementById('msg-overlay');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
 
-        canvas.width = 800;
-        canvas.height = window.innerHeight * 0.95;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        let gameActive = false;
-        let level = 1;
-        let roadOffset = 0;
-        let speed = 8;
-        const keys = {};
+        let score = 0;
+        let gameActive = true;
+        const player = { x: canvas.width / 2, y: canvas.height - 100, radius: 20 };
+        const projectiles = [];
+        const enemies = [];
+        const particles = [];
 
-        const themes = [
-            { grass: "#2d5a27", road: "#333" },
-            { grass: "#c2b280", road: "#444" },
-            { grass: "#1e3d59", road: "#222" },
-            { grass: "#a8dadc", road: "#3d405b"},
-            { grass: "#457b9d", road: "#1d3557"}
-        ];
-
-        const car1Img = new Image();
-        car1Img.src = 'https://i.imgur.com/vH0HhU9.png';
-        const car2Img = new Image();
-        car2Img.src = 'https://i.imgur.com/Bf0NnO5.png';
-
-        const p1 = { x: 150, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
-        const p2 = { x: 550, y: canvas.height - 220, w: 100, h: 180, score: 0, tilt: 0 };
-
-        window.addEventListener('keydown', e => {
-            keys[e.code] = true;
-            // Também permite iniciar com a tecla ESPAÇO
-            if (e.code === 'Space' && !gameActive) startGame();
+        // Mouse Move
+        window.addEventListener('mousemove', (e) => {
+            player.x = e.clientX;
+            player.y = e.clientY;
         });
-        window.addEventListener('keyup', e => keys[e.code] = false);
 
-        // FUNÇÃO DE INÍCIO CORRIGIDA
-        function startGame() {
-            if (gameActive) return; // Evita iniciar múltiplos loops
-            gameActive = true;
-            msgOverlay.style.visibility = 'hidden'; // Usa visibility para garantir que suma
-            msgOverlay.style.opacity = '0';
-            update();
-        }
-
-        function update() {
+        function spawnEnemy() {
             if (!gameActive) return;
-
-            let moveSpeed = 7 + (level * 1);
-
-            if (keys['KeyW'] && p1.y > 20) p1.y -= moveSpeed;
-            if (keys['KeyS'] && p1.y < canvas.height - 190) p1.y += moveSpeed;
-            if (keys['KeyA'] && p1.x > 60) { p1.x -= moveSpeed; p1.tilt = -0.04; }
-            if (keys['KeyD'] && p1.x < canvas.width/2 - 110) { p1.x += moveSpeed; p1.tilt = 0.04; }
-
-            if (keys['ArrowUp'] && p2.y > 20) p2.y -= moveSpeed;
-            if (keys['ArrowDown'] && p2.y < canvas.height - 190) p2.y += moveSpeed;
-            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 10) { p2.x -= moveSpeed; p2.tilt = -0.04; }
-            if (keys['ArrowRight'] && p2.x < canvas.width - 160) { p2.x += moveSpeed; p2.tilt = 0.04; }
-
-            p1.score += speed / 20;
-            p2.score += speed / 20;
-
-            let topScore = Math.max(p1.score, p2.score);
-            if (topScore > level * 2000 && level < 5) {
-                level++;
-                speed += 5;
-                document.getElementById('level').innerText = level;
-            }
-
-            if (topScore >= 10000) {
-                gameWin();
-                return;
-            }
-
-            roadOffset += speed;
-            draw();
-            requestAnimationFrame(update);
+            const radius = Math.random() * (40 - 15) + 15;
+            const x = Math.random() * canvas.width;
+            const y = -radius;
+            const speed = Math.random() * (4 - 1) + 1 + (score / 1000);
+            enemies.push({ x, y, radius, speed, color: `hsl(${Math.random() * 360}, 50%, 50%)` });
+            setTimeout(spawnEnemy, 800 - (score / 50 > 500 ? 500 : score / 50));
         }
 
-        function gameWin() {
-            gameActive = false;
-            msgOverlay.style.visibility = 'visible';
-            msgOverlay.style.opacity = '1';
-            document.getElementById('title').innerText = "CORRIDA FINALIZADA!";
-            document.getElementById('sub-msg').innerText = p1.score > p2.score ? "JOGADOR 1 VENCEU!" : "JOGADOR 2 VENCEU!";
-            document.getElementById('start-btn').innerText = "JOGAR NOVAMENTE";
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3,
+                    alpha: 1,
+                    color
+                });
+            }
         }
 
-        function draw() {
-            const theme = themes[level - 1];
-            ctx.fillStyle = theme.grass;
+        function resetGame() {
+            score = 0;
+            projectiles.length = 0;
+            enemies.length = 0;
+            particles.length = 0;
+            gameActive = true;
+            gameOverScreen.style.display = 'none';
+            scoreElement.innerText = '0';
+            spawnEnemy();
+            animate();
+        }
+
+        // Auto Shoot
+        setInterval(() => {
+            if (gameActive) {
+                projectiles.push({ x: player.x, y: player.y - 20, speed: 10 });
+            }
+        }, 150);
+
+        function animate() {
+            if (!gameActive) return;
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; // Efeito de rastro
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = theme.road;
-            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
-            ctx.fillStyle = "#FFF";
-            ctx.fillRect(55, 0, 10, canvas.height);
-            ctx.fillRect(canvas.width - 65, 0, 10, canvas.height);
-            ctx.strokeStyle = "#ffcc00";
-            ctx.lineWidth = 6;
-            ctx.setLineDash([60, 40]);
-            ctx.lineDashOffset = -roadOffset;
+
+            // Player - Brilho Neon
             ctx.beginPath();
-            ctx.moveTo(canvas.width/2, 0);
-            ctx.lineTo(canvas.width/2, canvas.height);
-            ctx.stroke();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00d4ff';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00d4ff';
+            ctx.fill();
+            ctx.shadowBlur = 0;
 
-            renderCar(car1Img, p1);
-            renderCar(car2Img, p2);
+            // Projetéis
+            projectiles.forEach((p, i) => {
+                p.y -= p.speed;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(p.x - 2, p.y, 4, 15);
+                if (p.y < 0) projectiles.splice(i, 1);
+            });
 
-            document.getElementById('p1-score').innerText = Math.floor(p1.score);
-            document.getElementById('p2-score').innerText = Math.floor(p2.score);
+            // Inimigos
+            enemies.forEach((en, i) => {
+                en.y += en.speed;
+                ctx.beginPath();
+                ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
+                ctx.fillStyle = en.color;
+                ctx.fill();
+
+                // Colisão com Player
+                const dist = Math.hypot(player.x - en.x, player.y - en.y);
+                if (dist < player.radius + en.radius) {
+                    gameActive = false;
+                    gameOverScreen.style.display = 'block';
+                    finalScoreElement.innerText = score;
+                }
+
+                // Colisão com Projetil
+                projectiles.forEach((p, pi) => {
+                    const distProj = Math.hypot(p.x - en.x, p.y - en.y);
+                    if (distProj < en.radius) {
+                        createParticles(en.x, en.y, en.color);
+                        score += 10;
+                        scoreElement.innerText = score;
+                        enemies.splice(i, 1);
+                        projectiles.splice(pi, 1);
+                    }
+                });
+
+                if (en.y > canvas.height + en.radius) enemies.splice(i, 1);
+            });
+
+            // Partículas de Explosão
+            particles.forEach((part, i) => {
+                part.x += part.vx;
+                part.y += part.vy;
+                part.alpha -= 0.02;
+                ctx.globalAlpha = part.alpha;
+                ctx.beginPath();
+                ctx.arc(part.x, part.y, part.radius, 0, Math.PI * 2);
+                ctx.fillStyle = part.color;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                if (part.alpha <= 0) particles.splice(i, 1);
+            });
+
+            requestAnimationFrame(animate);
         }
 
-        function renderCar(img, car) {
-            ctx.save();
-            ctx.translate(car.x + car.w/2, car.y + car.h/2);
-            ctx.rotate(car.tilt);
-            ctx.shadowBlur = 20;
-            ctx.shadowColor = "rgba(0,0,0,0.4)";
-            ctx.shadowOffsetY = 15;
-            ctx.drawImage(img, -car.w/2, -car.h/2, car.w, car.h);
-            ctx.restore();
-        }
-
-        // Desenha a primeira tela assim que as imagens carregarem
         window.onload = () => {
-            draw();
+            spawnEnemy();
+            animate();
         };
-    </script> 
-    
+
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+    </script>
+</body>
+</html>
