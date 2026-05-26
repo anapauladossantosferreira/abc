@@ -2,183 +2,208 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Racing - 5 Stages</title>
+    <title>Deep Space Survival</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; }
-        #game-container { position: relative; border: 4px solid #444; box-shadow: 0 0 50px #000; }
-        #ui { position: absolute; top: 10px; width: 100%; display: flex; justify-content: space-around; color: #fff; z-index: 10; pointer-events: none; text-shadow: 2px 2px #000; }
-        #msg-overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; flex-direction: column; justify-content: center; align-items: center; color: white; z-index: 100; text-align: center; }
-        button { padding: 15px 40px; font-size: 20px; background: #ff3300; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        button:hover { transform: scale(1.1); background: #ff5500; }
-        .stat-box { background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 20px; border: 1px solid #555; }
-        canvas { display: block; background: #222; }
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #050505;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            user-select: none;
+        }
+
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            pointer-events: none;
+        }
+
+        .stat { font-size: 24px; font-weight: bold; margin-bottom: 5px; }
+        #score { color: #00d4ff; }
+
+        #game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 40px;
+            border: 2px solid #ff0055;
+            display: none;
+        }
+
+        button {
+            padding: 10px 30px;
+            font-size: 18px;
+            background: #ff0055;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div id="ui">
-            <div class="stat-box">FASE: <span id="level-txt">1</span>/5</div>
-            <div class="stat-box">P1: <span id="p1-txt">0</span></div>
-            <div class="stat-box">P2: <span id="p2-txt">0</span></div>
-            <div class="stat-box">META: <span id="goal-txt">1000</span></div>
-        </div>
-        
-        <div id="msg-overlay">
-            <h1 id="main-title">RACING REALIST</h1>
-            <p id="sub-title">P1: [W,A,S,D] | P2: [SETAS]<br>Desvie dos obstáculos para avançar!</p>
-            <button id="btn-start">LARGADA</button>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div class="stat">SCORE: <span id="score">0</span></div>
     </div>
+
+    <div id="game-over">
+        <h1>NAVE DESTRUÍDA!</h1>
+        <p>Pontuação Final: <span id="final-score">0</span></p>
+        <button onclick="resetGame()">REINICIAR</button>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const overlay = document.getElementById('msg-overlay');
-        const btn = document.getElementById('btn-start');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
 
-        canvas.width = 800;
-        canvas.height = window.innerHeight * 0.95;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-        let gameActive = false;
-        let level = 1;
-        let roadOffset = 0;
-        let speed = 7;
-        let obstacles = [];
-        const keys = {};
+        let score = 0;
+        let gameActive = true;
+        const player = { x: canvas.width / 2, y: canvas.height - 100, radius: 20 };
+        const projectiles = [];
+        const enemies = [];
+        const particles = [];
 
-        // Carregamento de imagens realistas
-        const car1Img = new Image(); car1Img.src = 'https://i.imgur.com/vH0HhU9.png'; // Vermelho
-        const car2Img = new Image(); car2Img.src = 'https://i.imgur.com/Bf0NnO5.png'; // Azul
+        // Mouse Move
+        window.addEventListener('mousemove', (e) => {
+            player.x = e.clientX;
+            player.y = e.clientY;
+        });
 
-        const p1 = { x: 150, y: canvas.height - 200, w: 85, h: 160, score: 0, color: 'red' };
-        const p2 = { x: 550, y: canvas.height - 200, w: 85, h: 160, score: 0, color: 'blue' };
-
-        window.addEventListener('keydown', e => keys[e.code] = true);
-        window.addEventListener('keyup', e => keys[e.code] = false);
-
-        btn.addEventListener('click', startGame);
-
-        function startGame() {
-            gameActive = true;
-            overlay.style.display = 'none';
-            resetPlayers();
-            level = 1;
-            speed = 7;
-            obstacles = [];
-            spawnObstacles();
-            loop();
-        }
-
-        function resetPlayers() {
-            p1.y = canvas.height - 200; p1.score = 0;
-            p2.y = canvas.height - 200; p2.score = 0;
-        }
-
-        function spawnObstacles() {
+        function spawnEnemy() {
             if (!gameActive) return;
-            // Cria um obstáculo (bloco simulando outro veículo/barreira)
-            const lane = Math.random() < 0.5 ? (80 + Math.random() * 200) : (450 + Math.random() * 200);
-            obstacles.push({ x: lane, y: -200, w: 70, h: 120, color: '#f39c12' });
-            
-            // Frequência aumenta com o nível
-            setTimeout(spawnObstacles, 2000 - (level * 250));
+            const radius = Math.random() * (40 - 15) + 15;
+            const x = Math.random() * canvas.width;
+            const y = -radius;
+            const speed = Math.random() * (4 - 1) + 1 + (score / 1000);
+            enemies.push({ x, y, radius, speed, color: `hsl(${Math.random() * 360}, 50%, 50%)` });
+            setTimeout(spawnEnemy, 800 - (score / 50 > 500 ? 500 : score / 50));
         }
 
-        function checkCollision(a, b) {
-            return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
-        }
-
-        function update() {
-            let mSpeed = 6 + level;
-            const goal = level * 1000;
-            document.getElementById('goal-txt').innerText = goal;
-
-            // Movimento
-            if (keys['KeyW'] && p1.y > 0) p1.y -= mSpeed;
-            if (keys['KeyS'] && p1.y < canvas.height - p1.h) p1.y += mSpeed;
-            if (keys['KeyA'] && p1.x > 60) p1.x -= mSpeed;
-            if (keys['KeyD'] && p1.x < canvas.width/2 - 100) p1.x += mSpeed;
-
-            if (keys['ArrowUp'] && p2.y > 0) p2.y -= mSpeed;
-            if (keys['ArrowDown'] && p2.y < canvas.height - p2.h) p2.y += mSpeed;
-            if (keys['ArrowLeft'] && p2.x > canvas.width/2 + 20) p2.x -= mSpeed;
-            if (keys['ArrowRight'] && p2.x < canvas.width - 150) p2.x += mSpeed;
-
-            p1.score += 1; p2.score += 1;
-
-            // Obstáculos e Colisão
-            obstacles.forEach((obs, index) => {
-                obs.y += speed;
-                if (checkCollision(p1, obs) || checkCollision(p2, obs)) {
-                    gameOver("VOCÊ BATEU!");
-                }
-                if (obs.y > canvas.height) obstacles.splice(index, 1);
-            });
-
-            // Lógica de Passar de Fase
-            if (p1.score >= goal || p2.score >= goal) {
-                if (level < 5) {
-                    level++;
-                    speed += 3;
-                    obstacles = [];
-                    document.getElementById('level-txt').innerText = level;
-                } else {
-                    gameOver("CAMPEÃO DAS 5 FASES!");
-                }
+        function createParticles(x, y, color) {
+            for (let i = 0; i < 8; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 6,
+                    vy: (Math.random() - 0.5) * 6,
+                    radius: Math.random() * 3,
+                    alpha: 1,
+                    color
+                });
             }
-
-            roadOffset += speed;
-            document.getElementById('p1-txt').innerText = p1.score;
-            document.getElementById('p2-txt').innerText = p2.score;
         }
 
-        function gameOver(text) {
-            gameActive = false;
-            overlay.style.display = 'flex';
-            document.getElementById('main-title').innerText = text;
-            document.getElementById('btn-start').innerText = "TENTAR NOVAMENTE";
+        function resetGame() {
+            score = 0;
+            projectiles.length = 0;
+            enemies.length = 0;
+            particles.length = 0;
+            gameActive = true;
+            gameOverScreen.style.display = 'none';
+            scoreElement.innerText = '0';
+            spawnEnemy();
+            animate();
         }
 
-        function draw() {
-            // Estrada (Cores mudam por fase)
-            const grassColors = ["#1a5e1a", "#2e7d32", "#c2b280", "#455a64", "#263238"];
-            ctx.fillStyle = grassColors[level-1];
+        // Auto Shoot
+        setInterval(() => {
+            if (gameActive) {
+                projectiles.push({ x: player.x, y: player.y - 20, speed: 10 });
+            }
+        }, 150);
+
+        function animate() {
+            if (!gameActive) return;
+            ctx.fillStyle = 'rgba(5, 5, 5, 0.3)'; // Efeito de rastro
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            ctx.fillStyle = "#333";
-            ctx.fillRect(50, 0, canvas.width - 100, canvas.height);
 
-            // Linhas
-            ctx.strokeStyle = "#fff"; ctx.setLineDash([40, 40]);
-            ctx.lineDashOffset = -roadOffset; ctx.lineWidth = 4;
+            // Player - Brilho Neon
             ctx.beginPath();
-            ctx.moveTo(canvas.width / 2, 0); ctx.lineTo(canvas.width / 2, canvas.height);
-            ctx.stroke();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = '#00d4ff';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = '#00d4ff';
+            ctx.fill();
+            ctx.shadowBlur = 0;
 
-            // Obstáculos (Desenhados como caixas metálicas)
-            obstacles.forEach(obs => {
-                ctx.fillStyle = obs.color;
-                ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
-                ctx.strokeStyle = "#000"; ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+            // Projetéis
+            projectiles.forEach((p, i) => {
+                p.y -= p.speed;
+                ctx.fillStyle = '#fff';
+                ctx.fillRect(p.x - 2, p.y, 4, 15);
+                if (p.y < 0) projectiles.splice(i, 1);
             });
 
-            // Carros
-            if (car1Img.complete) ctx.drawImage(car1Img, p1.x, p1.y, p1.w, p1.h);
-            if (car2Img.complete) ctx.drawImage(car2Img, p2.x, p2.y, p2.w, p2.h);
+            // Inimigos
+            enemies.forEach((en, i) => {
+                en.y += en.speed;
+                ctx.beginPath();
+                ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
+                ctx.fillStyle = en.color;
+                ctx.fill();
+
+                // Colisão com Player
+                const dist = Math.hypot(player.x - en.x, player.y - en.y);
+                if (dist < player.radius + en.radius) {
+                    gameActive = false;
+                    gameOverScreen.style.display = 'block';
+                    finalScoreElement.innerText = score;
+                }
+
+                // Colisão com Projetil
+                projectiles.forEach((p, pi) => {
+                    const distProj = Math.hypot(p.x - en.x, p.y - en.y);
+                    if (distProj < en.radius) {
+                        createParticles(en.x, en.y, en.color);
+                        score += 10;
+                        scoreElement.innerText = score;
+                        enemies.splice(i, 1);
+                        projectiles.splice(pi, 1);
+                    }
+                });
+
+                if (en.y > canvas.height + en.radius) enemies.splice(i, 1);
+            });
+
+            // Partículas de Explosão
+            particles.forEach((part, i) => {
+                part.x += part.vx;
+                part.y += part.vy;
+                part.alpha -= 0.02;
+                ctx.globalAlpha = part.alpha;
+                ctx.beginPath();
+                ctx.arc(part.x, part.y, part.radius, 0, Math.PI * 2);
+                ctx.fillStyle = part.color;
+                ctx.fill();
+                ctx.globalAlpha = 1;
+                if (part.alpha <= 0) particles.splice(i, 1);
+            });
+
+            requestAnimationFrame(animate);
         }
 
-        function loop() {
-            if (!gameActive) return;
-            update();
-            draw();
-            requestAnimationFrame(loop);
-        }
+        window.onload = () => {
+            spawnEnemy();
+            animate();
+        };
 
-        window.onload = draw;
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
     </script>
 </body>
 </html>
