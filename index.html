@@ -7,13 +7,175 @@
         body {
             margin: 0;
             overflow: hidden;
-            background: #020205; /* Fundo do espaço profundo */
-            font-family: 'Courier New', Courier, monospace;
-            color: #00f2ff;
+            background: #000; /* Fundo preto garantido */
+            font-family: 'Arial Black', sans-serif;
+            color: white;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
 
         #ui {
             position: absolute;
             top: 20px;
             left: 20px;
-            pointer-events:
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        #overlay {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 50px;
+            border: 2px solid #00d4ff;
+            border-radius: 20px;
+            z-index: 100;
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 20px;
+            background: #00d4ff;
+            color: #000;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: 0.3s;
+        }
+
+        button:hover { transform: scale(1.1); background: #fff; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <div id="ui">
+            <div style="font-size: 30px;">SCORE: <span id="score">0</span></div>
+        </div>
+
+        <div id="overlay">
+            <h1 id="title">GALAXY ROCKET</h1>
+            <p>Mova o MOUSE para pilotar</p>
+            <button id="start-btn">LANÇAR FOGUETE</button>
+        </div>
+
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const overlay = document.getElementById('overlay');
+        const btn = document.getElementById('start-btn');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let score = 0;
+        let gameActive = false;
+        const player = { x: canvas.width / 2, y: canvas.height / 2, w: 50, h: 80 };
+        const enemies = [];
+        const stars = [];
+
+        // Carregar Imagem do Foguete
+        const rocketImg = new Image();
+        rocketImg.src = 'https://cdn-icons-png.flaticon.com/512/1066/1066371.png'; 
+
+        // Gerar estrelas para o fundo de galáxia
+        for(let i=0; i<150; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: Math.random() * 3 + 1
+            });
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            player.x = e.clientX;
+            player.y = e.clientY;
+        });
+
+        btn.addEventListener('click', () => {
+            gameActive = true;
+            overlay.style.display = 'none';
+            score = 0;
+            enemies.length = 0;
+            spawnEnemy();
+            animate();
+        });
+
+        function spawnEnemy() {
+            if (!gameActive) return;
+            enemies.push({
+                x: Math.random() * canvas.width,
+                y: -50,
+                radius: Math.random() * 30 + 10,
+                speed: Math.random() * 4 + 2 + (score/500)
+            });
+            setTimeout(spawnEnemy, 600);
+        }
+
+        function drawBackground() {
+            // Fundo Nebulosa
+            ctx.fillStyle = '#050a16';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Desenhar Estrelas (Efeito Galáxia)
+            ctx.fillStyle = "white";
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                star.y += star.speed;
+                if(star.y > canvas.height) star.y = 0;
+            });
+        }
+
+        function animate() {
+            if (!gameActive) return;
+            drawBackground();
+
+            // Desenhar Foguete
+            ctx.save();
+            ctx.translate(player.x, player.y);
+            // Sombra/Fogo do foguete
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = "#ffaa00";
+            
+            if (rocketImg.complete && rocketImg.naturalWidth !== 0) {
+                ctx.drawImage(rocketImg, -player.w/2, -player.h/2, player.w, player.h);
+            } else {
+                // Caso a imagem falhe, desenha um foguete geométrico
+                ctx.fillStyle = "red";
+                ctx.fillRect(-15, -20, 30, 40);
+            }
+            ctx.restore();
+            ctx.shadowBlur = 0;
+
+            // Inimigos (Meteoros)
+            enemies.forEach((en, i) => {
+                en.y += en.speed;
+                
+                ctx.fillStyle = "#555";
+                ctx.beginPath();
+                ctx.arc(en.x, en.y, en.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Colisão Simples
+                const dist = Math.hypot(player.x - en.x, player.y - en.y);
+                if (dist < en.radius + 20) {
+                    gameOver();
+                }
+
+                if (en.y > canvas.height + 50)
