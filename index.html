@@ -2,53 +2,22 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Rocket Galaxy Survival</title>
+    <title>Rocket Galaxy War</title>
     <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-            background: #020205;
-            font-family: 'Arial Black', sans-serif;
-            color: white;
-        }
-
-        #ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            z-index: 10;
-            pointer-events: none;
-        }
-
+        body { margin: 0; overflow: hidden; background: #020205; font-family: 'Arial Black', sans-serif; color: white; }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
         #score-display { font-size: 30px; color: #ffcc00; text-shadow: 2px 2px #000; }
-
         #overlay {
-            position: absolute;
-            width: 100%;
-            height: 100%;
+            position: absolute; width: 100%; height: 100%;
             background: radial-gradient(circle, rgba(20,20,50,0.8) 0%, rgba(0,0,0,0.95) 100%);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
         }
-
         h1 { font-size: 60px; margin: 0; color: #00d4ff; text-shadow: 0 0 20px #00d4ff; }
-
         button {
-            padding: 20px 60px;
-            font-size: 25px;
-            background: #ff0055;
-            color: white;
-            border: none;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
-            transition: 0.3s;
-            margin-top: 30px;
+            padding: 20px 60px; font-size: 25px; background: #ff0055; color: white; border: none;
+            border-radius: 50px; cursor: pointer; box-shadow: 0 0 30px rgba(255, 0, 85, 0.5);
+            transition: 0.3s; margin-top: 30px;
         }
-
         button:hover { transform: scale(1.1); background: #ff2b73; }
     </style>
 </head>
@@ -59,9 +28,9 @@
     </div>
 
     <div id="overlay">
-        <h1 id="main-title">GALAXY ROCKET</h1>
-        <p>Use o Mouse para pilotar o Foguete</p>
-        <button id="start-btn">DECOLAR!</button>
+        <h1 id="main-title">GALAXY WAR</h1>
+        <p>Mouse: Move | Clique: Atira</p>
+        <button id="start-btn">INICIAR BATALHA</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -80,115 +49,116 @@
         let score = 0;
         const player = { x: canvas.width / 2, y: canvas.height / 2, r: 25 };
         const enemies = [];
+        const shots = [];
         const stars = [];
+        const particles = [];
 
-        // Criar estrelas para o fundo da galáxia
+        // Inicializar estrelas
         for(let i=0; i<150; i++) {
-            stars.push({
-                x: Math.random() * canvas.width,
-                y: Math.random() * canvas.height,
-                size: Math.random() * 2,
-                speed: Math.random() * 3 + 1
-            });
+            stars.push({ x: Math.random()*canvas.width, y: Math.random()*canvas.height, size: Math.random()*2, speed: Math.random()*3 + 1 });
         }
 
-        window.addEventListener('mousemove', (e) => {
-            player.x = e.clientX;
-            player.y = e.clientY;
-        });
+        // Controles
+        window.addEventListener('mousemove', (e) => { player.x = e.clientX; player.y = e.clientY; });
+        window.addEventListener('mousedown', () => { if(gameActive) shoot(); });
+
+        function shoot() {
+            shots.push({ x: player.x, y: player.y - 30, speed: 12 });
+        }
 
         startBtn.addEventListener('click', () => {
             gameActive = true;
             overlay.style.display = 'none';
             score = 0;
             enemies.length = 0;
+            shots.length = 0;
+            particles.length = 0;
+            scoreTxt.innerText = "SCORE: 0";
             animate();
             spawnEnemies();
         });
 
         function spawnEnemies() {
             if(!gameActive) return;
-            const size = Math.random() * 30 + 20;
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
-                r: size,
-                speed: Math.random() * 4 + 2 + (score/1000)
+                r: Math.random() * 25 + 20,
+                speed: Math.random() * 3 + 2 + (score/2000)
             });
-            setTimeout(spawnEnemies, 1000 - (Math.min(score/10, 600)));
+            setTimeout(spawnEnemies, Math.max(300, 1000 - (score/5)));
+        }
+
+        function createExplosion(x, y, color) {
+            for(let i=0; i<10; i++) {
+                particles.push({
+                    x: x, y: y,
+                    vx: (Math.random()-0.5)*8,
+                    vy: (Math.random()-0.5)*8,
+                    life: 1.0,
+                    color: color
+                });
+            }
         }
 
         function drawRocket(x, y) {
             ctx.save();
             ctx.translate(x, y);
-            
-            // Fogo do motor (animado)
+            // Fogo
             ctx.fillStyle = Math.random() > 0.5 ? '#ffaa00' : '#ff4400';
-            ctx.beginPath();
-            ctx.moveTo(-10, 25);
-            ctx.lineTo(0, 45 + Math.random()*10);
-            ctx.lineTo(10, 25);
-            ctx.fill();
-
-            // Corpo do Foguete
-            ctx.fillStyle = '#eee';
-            ctx.beginPath();
-            ctx.moveTo(0, -35); // Bico
-            ctx.bezierCurveTo(20, -10, 20, 20, 15, 30); // Lado direito
-            ctx.lineTo(-15, 30); // Base
-            ctx.bezierCurveTo(-20, 20, -20, -10, 0, -35); // Lado esquerdo
-            ctx.fill();
-
-            // Janela
-            ctx.fillStyle = '#33ccff';
-            ctx.beginPath();
-            ctx.arc(0, -5, 7, 0, Math.PI*2);
-            ctx.fill();
-
-            // Asas
-            ctx.fillStyle = '#ff0055';
-            ctx.fillRect(-22, 15, 10, 15);
-            ctx.fillRect(12, 15, 10, 15);
-            
+            ctx.beginPath(); ctx.moveTo(-8, 20); ctx.lineTo(0, 40); ctx.lineTo(8, 20); ctx.fill();
+            // Corpo
+            ctx.fillStyle = '#ddd';
+            ctx.beginPath(); ctx.moveTo(0, -30); ctx.bezierCurveTo(15, -10, 15, 15, 10, 25); ctx.lineTo(-10, 25); ctx.bezierCurveTo(-15, 15, -15, -10, 0, -30); ctx.fill();
+            // Janela e Asas
+            ctx.fillStyle = '#33ccff'; ctx.beginPath(); ctx.arc(0, -5, 6, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = '#ff0055'; ctx.fillRect(-18, 10, 8, 12); ctx.fillRect(10, 10, 8, 12);
             ctx.restore();
         }
 
         function animate() {
             if(!gameActive) return;
-            
-            // Fundo Espacial
-            ctx.fillStyle = '#020205';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#020205'; ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Desenhar Estrelas (Movimento de Galáxia)
+            // Estrelas
             ctx.fillStyle = "white";
-            stars.forEach(s => {
-                s.y += s.speed;
-                if(s.y > canvas.height) s.y = 0;
-                ctx.beginPath();
-                ctx.arc(s.x, s.y, s.size, 0, Math.PI*2);
-                ctx.fill();
+            stars.forEach(s => { s.y += s.speed; if(s.y > canvas.height) s.y = 0; ctx.beginPath(); ctx.arc(s.x, s.y, s.size, 0, Math.PI*2); ctx.fill(); });
+
+            // Tiros
+            shots.forEach((sh, si) => {
+                sh.y -= sh.speed;
+                ctx.fillStyle = '#00ff00'; ctx.shadowBlur = 10; ctx.shadowColor = '#00ff00';
+                ctx.fillRect(sh.x - 2, sh.y, 4, 15); ctx.shadowBlur = 0;
+                if(sh.y < -20) shots.splice(si, 1);
             });
 
-            // Inimigos (Meteoros)
-            enemies.forEach((en, i) => {
+            // Inimigos e Colisões
+            enemies.forEach((en, ei) => {
                 en.y += en.speed;
-                ctx.fillStyle = '#554433';
-                ctx.beginPath();
-                ctx.arc(en.x, en.y, en.r, 0, Math.PI*2);
-                ctx.fill();
-                
-                // Colisão simples
-                const dist = Math.hypot(player.x - en.x, player.y - en.y);
-                if(dist < player.r + en.r) {
-                    gameOver();
-                }
+                ctx.fillStyle = '#665544'; ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
 
-                if(en.y > canvas.height + 100) {
-                    enemies.splice(i, 1);
-                    score += 10;
-                    scoreTxt.innerText = "SCORE: " + score;
-                }
+                // Colisão Tiro -> Inimigo
+                shots.forEach((sh, si) => {
+                    if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
+                        createExplosion(en.x, en.y, '#887766');
+                        enemies.splice(ei, 1);
+                        shots.splice(si, 1);
+                        score += 50;
+                        scoreTxt.innerText = "SCORE: " + score;
+                    }
+                });
+
+                // Colisão Jogador -> Inimigo
+                if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) gameOver();
+                if(en.y > canvas.height + 50) enemies.splice(ei, 1);
+            });
+
+            // Partículas
+            particles.forEach((pa, pi) => {
+                pa.x += pa.vx; pa.y += pa.vy; pa.life -= 0.02;
+                ctx.fillStyle = pa.color; ctx.globalAlpha = pa.life;
+                ctx.fillRect(pa.x, pa.y, 3, 3); ctx.globalAlpha = 1;
+                if(pa.life <= 0) particles.splice(pi, 1);
             });
 
             drawRocket(player.x, player.y);
@@ -198,9 +168,8 @@
         function gameOver() {
             gameActive = false;
             overlay.style.display = 'flex';
-            document.getElementById('main-title').innerText = "MISSÃO FALHOU!";
-            document.getElementById('main-title').style.color = "#ff0055";
-            startBtn.innerText = "TENTAR NOVAMENTE";
+            document.getElementById('main-title').innerText = "GAME OVER";
+            startBtn.innerText = "RECOMECAR BATALHA";
         }
     </script>
 </body>
