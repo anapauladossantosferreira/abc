@@ -2,21 +2,21 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Fixed Edition</title>
+    <title>Galaxy War - Ultra Sensitivity</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #020205; font-family: 'Arial Black', sans-serif; color: white; }
-        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
-        #score-display { font-size: 30px; color: #ffcc00; text-shadow: 2px 2px #000; }
+        body { margin: 0; overflow: hidden; background: #010105; font-family: 'Arial Black', sans-serif; }
+        #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; color: white; }
+        #score-display { font-size: 30px; color: #00ffcc; text-shadow: 2px 2px #000; }
         #overlay {
             position: absolute; width: 100%; height: 100%;
-            background: radial-gradient(circle, rgba(20,20,50,0.9) 0%, rgba(0,0,0,1) 100%);
-            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 100; color: white;
         }
         button {
-            padding: 20px 60px; font-size: 25px; background: #00d4ff; color: black; border: none;
-            border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 20px;
+            padding: 20px 60px; font-size: 25px; background: #00ffcc; color: black; border: none;
+            border-radius: 10px; cursor: pointer; font-weight: bold;
         }
-        canvas { display: block; cursor: crosshair; }
+        canvas { display: block; cursor: none; } /* Cursor oculto para focar no foguete */
     </style>
 </head>
 <body>
@@ -26,9 +26,9 @@
     </div>
 
     <div id="overlay">
-        <h1>GALAXY WAR</h1>
-        <p>Atire com o CLIQUE ou ESPAÇO</p>
-        <button id="btn-play">INICIAR JOGO</button>
+        <h1>MODO SENSIBILIDADE ALTA</h1>
+        <p>O foguete agora reage instantaneamente</p>
+        <button id="btn-play">INICIAR BATALHA</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -44,23 +44,25 @@
 
         let gameActive = false;
         let score = 0;
-        const player = { x: canvas.width/2, y: canvas.height/2, r: 20 };
+        
+        // Foguete com posição direta
+        const player = { x: canvas.width/2, y: canvas.height/2, r: 15 };
         const shots = [];
         const enemies = [];
-        const particles = [];
-        const stars = [];
+        const stars = Array.from({length: 150}, () => ({
+            x: Math.random()*canvas.width, 
+            y: Math.random()*canvas.height, 
+            s: Math.random()*3
+        }));
 
-        // Estrelas de fundo
-        for(let i=0; i<100; i++) stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
-
-        // Eventos de Controle
+        // SENSIBILIDADE AUMENTADA: O foguete "cola" no cursor sem suavização
         window.addEventListener('mousemove', e => {
             player.x = e.clientX;
             player.y = e.clientY;
         });
 
-        // DISPARO (Clique ou Espaço)
-        const fire = () => { if(gameActive) shots.push({x: player.x, y: player.y - 30}); };
+        // DISPARO RÁPIDO
+        const fire = () => { if(gameActive) shots.push({x: player.x, y: player.y - 20}); };
         window.addEventListener('mousedown', fire);
         window.addEventListener('keydown', e => { if(e.code === 'Space') fire(); });
 
@@ -79,56 +81,44 @@
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
-                r: Math.random() * 20 + 20,
-                speed: 3 + (score/1000)
+                r: Math.random() * 15 + 20,
+                speed: 5 + (score/500) // Meteoros mais rápidos para combinar com a sua agilidade
             });
-            setTimeout(spawn, Math.max(200, 1000 - (score/10)));
-        }
-
-        function explode(x, y) {
-            for(let i=0; i<8; i++) {
-                particles.push({
-                    x, y, 
-                    vx: (Math.random()-0.5)*10, 
-                    vy: (Math.random()-0.5)*10, 
-                    a: 1
-                });
-            }
+            setTimeout(spawn, Math.max(100, 800 - (score/15)));
         }
 
         function update() {
             if(!gameActive) return;
 
-            // Limpar Tela
-            ctx.fillStyle = '#020205';
+            ctx.fillStyle = '#010105';
             ctx.fillRect(0,0, canvas.width, canvas.height);
 
             // Estrelas
-            ctx.fillStyle = 'white';
+            ctx.fillStyle = '#fff';
             stars.forEach(s => {
-                s.y += 1; if(s.y > canvas.height) s.y = 0;
+                s.y += 2; if(s.y > canvas.height) s.y = 0;
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Movimentar Tiros
+            // Tiros (Mais rápidos)
             shots.forEach((sh, i) => {
-                sh.y -= 15;
+                sh.y -= 25; 
                 ctx.fillStyle = '#0f0';
-                ctx.fillRect(sh.x-2, sh.y, 4, 20);
+                ctx.shadowBlur = 10; ctx.shadowColor = '#0f0';
+                ctx.fillRect(sh.x-2, sh.y, 4, 25);
+                ctx.shadowBlur = 0;
                 if(sh.y < 0) shots.splice(i, 1);
             });
 
-            // Movimentar Inimigos
+            // Inimigos
             enemies.forEach((en, i) => {
                 en.y += en.speed;
-                ctx.fillStyle = '#755';
+                ctx.fillStyle = '#855';
                 ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
 
-                // Colisão Tiro com Meteoro
+                // Colisão Tiro
                 shots.forEach((sh, si) => {
-                    const d = Math.hypot(sh.x - en.x, sh.y - en.y);
-                    if(d < en.r) {
-                        explode(en.x, en.y);
+                    if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
                         enemies.splice(i, 1);
                         shots.splice(si, 1);
                         score += 100;
@@ -136,38 +126,8 @@
                     }
                 });
 
-                // Colisão Meteoro com Jogador
+                // Colisão Jogador
                 if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
                     gameActive = false;
                     overlay.style.display = 'flex';
                     document.querySelector('h1').innerText = "FIM DE JOGO";
-                }
-
-                if(en.y > canvas.height + 50) enemies.splice(i, 1);
-            });
-
-            // Partículas
-            particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.a -= 0.02;
-                ctx.fillStyle = `rgba(255, 100, 0, ${p.a})`;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                if(p.a <= 0) particles.splice(i, 1);
-            });
-
-            // Desenhar Foguete
-            drawRocket(player.x, player.y);
-
-            requestAnimationFrame(update);
-        }
-
-        function drawRocket(x, y) {
-            ctx.fillStyle = '#fff'; // Corpo
-            ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+15, y+10); ctx.lineTo(x-15, y+10); ctx.fill();
-            ctx.fillStyle = '#f00'; // Asas
-            ctx.fillRect(x-20, y, 10, 15); ctx.fillRect(x+10, y, 10, 15);
-            ctx.fillStyle = '#ff0'; // Fogo
-            if(Math.random()>0.5) ctx.fillRect(x-5, y+10, 10, 15);
-        }
-    </script>
-</body>
-</html>
