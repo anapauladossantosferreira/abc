@@ -2,24 +2,14 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Arcade Edition</title>
+    <title>Galaxy War - Auto Start Edition</title>
     <style>
-        * { box-sizing: border-box; }
         body { 
             margin: 0; 
             overflow: hidden; 
-            background: #020205; 
+            background: #010105; 
             font-family: 'Arial Black', sans-serif; 
             color: white; 
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-        #game-container {
-            position: relative;
-            width: 100vw;
-            height: 100vh;
         }
         #ui { 
             position: absolute; 
@@ -28,142 +18,137 @@
             z-index: 10; 
             pointer-events: none; 
         }
-        #score-display { font-size: 30px; color: #ffcc00; text-shadow: 2px 2px #000; }
-        
-        /* Tela Inicial Ocupa Tudo e Aceita Clique em Qualquer Lugar */
-        #overlay {
+        #score-display { 
+            font-size: 30px; 
+            color: #ffcc00; 
+            text-shadow: 2px 2px 4px #000; 
+        }
+        #game-over-screen {
             position: absolute; 
-            top: 0;
-            left: 0;
             width: 100%; 
             height: 100%;
-            background: radial-gradient(circle, rgba(20,20,50,0.95) 0%, rgba(0,0,0,1) 100%);
-            display: flex; 
+            background: rgba(0, 0, 0, 0.85);
+            display: none; 
             flex-direction: column; 
             justify-content: center; 
             align-items: center; 
             z-index: 100;
-            cursor: pointer;
-            text-align: center;
         }
-        h1 { font-size: 50px; margin: 10px 0; color: #00d4ff; text-shadow: 0 0 20px #00d4ff; }
-        p { font-size: 20px; color: #ccc; }
-        .blink { animation: blinker 1.5s linear infinite; color: #ff0055; font-size: 24px; font-weight: bold; }
-        @keyframes blinker { 50% { opacity: 0; } }
-        canvas { display: block; }
+        h1 { font-size: 50px; color: #ff0055; text-shadow: 0 0 10px #ff0055; margin: 0; }
+        p { font-size: 20px; color: #00d4ff; }
+        canvas { display: block; cursor: crosshair; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div id="ui">
-            <div id="score-display">SCORE: 0</div>
-        </div>
-
-        <div id="overlay" onclick="forceStartGame()">
-            <h1 id="main-title">GALAXY WAR</h1>
-            <p>Movimente com o MOUSE</p>
-            <p>Atire com o CLIQUE ESQUERDO ou ESPAÇO</p>
-            <br>
-            <div class="blink" id="action-msg">CLIQUE EM QUALQUER LUGAR PARA INICIAR</div>
-        </div>
-
-        <canvas id="gameCanvas"></canvas>
+    <div id="ui">
+        <div id="score-display">SCORE: 0</div>
     </div>
+
+    <div id="game-over-screen" id="go-screen">
+        <h1>CONEXÃO PERDIDA</h1>
+        <p>O Foguete foi destruído!</p>
+        <p style="color: #fff; font-size: 16px;">Pressione F5 para Recarregar e Tentar Novamente</p>
+    </div>
+
+    <canvas id="gameCanvas"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreTxt = document.getElementById('score-display');
-        const overlay = document.getElementById('overlay');
-        const mainTitle = document.getElementById('main-title');
-        const actionMsg = document.getElementById('action-msg');
+        const gameOverScreen = document.getElementById('game-over-screen');
 
-        // Ajusta tamanho do canvas para ocupar a tela toda
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let gameActive = false;
+        // O jogo já começa ativo!
+        let gameActive = true;
         let score = 0;
         const player = { x: canvas.width/2, y: canvas.height/2, r: 20 };
-        let shots = [];
-        let enemies = [];
-        let particles = [];
+        const shots = [];
+        const enemies = [];
+        const particles = [];
         const stars = [];
 
-        // Gerador de fundo estrelado
+        // Criar estrelas de fundo
         for(let i=0; i<120; i++) {
-            stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2+1});
+            stars.push({
+                x: Math.random() * canvas.width, 
+                y: Math.random() * canvas.height, 
+                s: Math.random() * 2.5
+            });
         }
 
-        // Rastreamento do mouse
+        // Seguir o movimento do mouse
         window.addEventListener('mousemove', e => {
             player.x = e.clientX;
             player.y = e.clientY;
         });
 
-        // Mecanismo de Disparo
-        const fireLaser = () => { 
-            if(gameActive) shots.push({x: player.x, y: player.y - 30}); 
+        // Função de Atirar
+        const fire = () => { 
+            if(gameActive) {
+                shots.push({ x: player.x, y: player.y - 30 }); 
+            }
         };
-        window.addEventListener('mousedown', fireLaser);
+
+        // Atira com Clique ou Espaço
+        window.addEventListener('mousedown', fire);
         window.addEventListener('keydown', e => { 
-            if(e.code === 'Space') fireLaser(); 
+            if(e.code === 'Space') fire(); 
         });
 
-        // FUNÇÃO DE INICIALIZAÇÃO INTRANSIGENTE
-        function forceStartGame() {
-            if (gameActive) return; 
-            
-            // Reinicia estados
-            score = 0;
-            shots = [];
-            enemies = [];
-            particles = [];
-            scoreTxt.innerText = "SCORE: 0";
-            
-            // Esconde o menu e ativa o jogo
-            overlay.style.display = 'none';
-            gameActive = true;
-            
-            // Inicia os loops
-            updateGame();
-            spawnLoop();
-        }
-
-        function spawnLoop() {
+        // Gerador contínuo de meteoros
+        function spawn() {
             if(!gameActive) return;
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
-                r: Math.random() * 20 + 20,
-                speed: 3.5 + (score/1500)
+                r: Math.random() * 25 + 20, // Tamanho variado
+                speed: 3 + (score / 1500)   // Fica mais rápido com o tempo
             });
-            // O spawn acelera conforme os pontos sobem
-            setTimeout(spawnLoop, Math.max(250, 900 - (score/8)));
+            // Diminui o tempo de surgimento conforme a pontuação aumenta
+            setTimeout(spawn, Math.max(250, 900 - (score / 8)));
         }
 
-        function triggerExplosion(x, y) {
-            for(let i=0; i<10; i++) {
+        // Efeito visual de quebra/explosão
+        function explode(x, y) {
+            for(let i=0; i<12; i++) {
                 particles.push({
                     x, y, 
-                    vx: (Math.random()-0.5)*12, 
-                    vy: (Math.random()-0.5)*12, 
-                    alpha: 1
+                    vx: (Math.random() - 0.5) * 12, 
+                    vy: (Math.random() - 0.5) * 12, 
+                    a: 1
                 });
             }
         }
 
-        function updateGame() {
+        function update() {
             if(!gameActive) return;
 
-            // Renderiza fundo preto profundo
-            ctx.fillStyle = '#020205';
+            // Fundo do espaço
+            ctx.fillStyle = '#020208';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Renderiza e move estrelas
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+            // Desenhar e mover estrelas
+            ctx.fillStyle = '#ffffff';
             stars.forEach(s => {
                 s.y += 1.5; 
                 if(s.y > canvas.height) s.y = 0;
-                ctx.fillRect(s.x, s.y, s.s,
+                ctx.fillRect(s.x, s.y, s.s, s.s);
+            });
+
+            // Mover e desenhar Lasers (Armamento)
+            shots.forEach((sh, i) => {
+                sh.y -= 16; // Velocidade do tiro
+                ctx.fillStyle = '#00ffcc';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ffcc';
+                ctx.fillRect(sh.x - 2, sh.y, 4, 25);
+                ctx.shadowBlur = 0; // Reset do brilho
+                
+                if(sh.y < -30) shots.splice(i, 1);
+            });
+
+            // Mover e desenhar Meteoros
