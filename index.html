@@ -2,11 +2,13 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Fixed Edition</title>
+    <title>Galaxy War: 5 Stages</title>
     <style>
         body { margin: 0; overflow: hidden; background: #020205; font-family: 'Arial Black', sans-serif; color: white; }
         #ui { position: absolute; top: 20px; left: 20px; z-index: 10; pointer-events: none; }
-        #score-display { font-size: 30px; color: #ffcc00; text-shadow: 2px 2px #000; }
+        .hud { font-size: 25px; text-shadow: 2px 2px #000; margin-bottom: 5px; }
+        #score-display { color: #ffcc00; }
+        #stage-display { color: #00d4ff; }
         #overlay {
             position: absolute; width: 100%; height: 100%;
             background: radial-gradient(circle, rgba(20,20,50,0.9) 0%, rgba(0,0,0,1) 100%);
@@ -22,13 +24,14 @@
 <body>
 
     <div id="ui">
-        <div id="score-display">SCORE: 0</div>
+        <div class="hud">FASE: <span id="stage-display">1</span>/5</div>
+        <div class="hud">SCORE: <span id="score-display">0</span></div>
     </div>
 
     <div id="overlay">
-        <h1>GALAXY WAR</h1>
-        <p>Atire com o CLIQUE ou ESPAÇO</p>
-        <button id="btn-play">INICIAR JOGO</button>
+        <h1 id="main-title">GALAXY WAR</h1>
+        <p id="sub-title">Os inimigos agora atiram! Um acerto avança de fase.</p>
+        <button id="btn-play">INICIAR BATALHA</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -37,15 +40,20 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const scoreTxt = document.getElementById('score-display');
+        const stageTxt = document.getElementById('stage-display');
         const overlay = document.getElementById('overlay');
+        const mainTitle = document.getElementById('main-title');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let gameActive = false;
         let score = 0;
-        const player = { x: canvas.width/2, y: canvas.height/2, r: 20 };
-        const shots = [];
+        let stage = 1;
+        const player = { x: canvas.width/2, y: canvas.height/2, r: 18 };
+        
+        const myShots = [];
+        const enemyShots = [];
         const enemies = [];
         const particles = [];
         const stars = [];
@@ -53,14 +61,14 @@
         // Estrelas de fundo
         for(let i=0; i<100; i++) stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
 
-        // Eventos de Controle
+        // Controles
         window.addEventListener('mousemove', e => {
             player.x = e.clientX;
             player.y = e.clientY;
         });
 
-        // DISPARO (Clique ou Espaço)
-        const fire = () => { if(gameActive) shots.push({x: player.x, y: player.y - 30}); };
+        // Disparo do Jogador
+        const fire = () => { if(gameActive) myShots.push({x: player.x, y: player.y - 30}); };
         window.addEventListener('mousedown', fire);
         window.addEventListener('keydown', e => { if(e.code === 'Space') fire(); });
 
@@ -68,30 +76,40 @@
             gameActive = true;
             overlay.style.display = 'none';
             score = 0;
+            stage = 1;
             enemies.length = 0;
-            shots.length = 0;
+            myShots.length = 0;
+            enemyShots.length = 0;
+            scoreTxt.innerText = "0";
+            stageTxt.innerText = "1";
             update();
             spawn();
         });
 
         function spawn() {
             if(!gameActive) return;
+            
+            // Quanto maior a fase, mais rápido eles aparecem e caem
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
                 r: Math.random() * 20 + 20,
-                speed: 3 + (score/1000)
+                speed: 2 + stage,
+                lastShot: Date.now(),
+                shootInterval: Math.max(800, 2500 - (stage * 400)) // Atiram com mais frequência a cada fase
             });
-            setTimeout(spawn, Math.max(200, 1000 - (score/10)));
+            
+            setTimeout(spawn, Math.max(300, 1200 - (stage * 150)));
         }
 
-        function explode(x, y) {
-            for(let i=0; i<8; i++) {
+        function explode(x, y, color) {
+            for(let i=0; i<10; i++) {
                 particles.push({
                     x, y, 
-                    vx: (Math.random()-0.5)*10, 
-                    vy: (Math.random()-0.5)*10, 
-                    a: 1
+                    vx: (Math.random()-0.5)*12, 
+                    vy: (Math.random()-0.5)*12, 
+                    a: 1,
+                    color: color
                 });
             }
         }
@@ -99,75 +117,85 @@
         function update() {
             if(!gameActive) return;
 
-            // Limpar Tela
             ctx.fillStyle = '#020205';
             ctx.fillRect(0,0, canvas.width, canvas.height);
 
             // Estrelas
             ctx.fillStyle = 'white';
             stars.forEach(s => {
-                s.y += 1; if(s.y > canvas.height) s.y = 0;
+                s.y += 0.5 + (stage * 0.5); 
+                if(s.y > canvas.height) s.y = 0;
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Movimentar Tiros
-            shots.forEach((sh, i) => {
-                sh.y -= 15;
+            // Movimentar Tiros do Jogador (Verde)
+            myShots.forEach((sh, i) => {
+                sh.y -= 16;
                 ctx.fillStyle = '#0f0';
                 ctx.fillRect(sh.x-2, sh.y, 4, 20);
-                if(sh.y < 0) shots.splice(i, 1);
+                if(sh.y < 0) myShots.splice(i, 1);
             });
 
-            // Movimentar Inimigos
+            // Movimentar Tiros dos Inimigos (Vermelho)
+            enemyShots.forEach((esh, i) => {
+                esh.y += 8 + stage; // Tiros ficam mais rápidos por fase
+                ctx.fillStyle = '#f00';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#f00';
+                ctx.fillRect(esh.x-3, esh.y, 6, 18);
+                ctx.shadowBlur = 0;
+
+                // Testar se o tiro inimigo acertou você
+                if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
+                    explode(player.x, player.y, '#f22');
+                    gameOver("SUA NAVE FOI DESTRUÍDA!");
+                }
+
+                if(esh.y > canvas.height) enemyShots.splice(i, 1);
+            });
+
+            // Movimentar Meteoros Inimigos
             enemies.forEach((en, i) => {
                 en.y += en.speed;
-                ctx.fillStyle = '#755';
+                ctx.fillStyle = '#766';
                 ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
 
-                // Colisão Tiro com Meteoro
-                shots.forEach((sh, si) => {
+                // Lógica de Tiro do Inimigo
+                if(Date.now() - en.lastShot > en.shootInterval) {
+                    enemyShots.push({ x: en.x, y: en.y + en.r });
+                    en.lastShot = Date.now();
+                }
+
+                // Colisão do seu Tiro com o Inimigo
+                myShots.forEach((sh, si) => {
                     const d = Math.hypot(sh.x - en.x, sh.y - en.y);
                     if(d < en.r) {
-                        explode(en.x, en.y);
+                        explode(en.x, en.y, '#f72');
                         enemies.splice(i, 1);
-                        shots.splice(si, 1);
-                        score += 100;
-                        scoreTxt.innerText = "SCORE: " + score;
+                        myShots.splice(si, 1);
+                        
+                        score += 100 * stage;
+                        scoreTxt.innerText = score;
+
+                        // Passar de fase a cada acerto
+                        if(stage < 5) {
+                            stage++;
+                            stageTxt.innerText = stage;
+                        } else {
+                            gameOver("VITÓRIA CONQUISTADA! VOCÊ SALVOU A GALÁXIA!");
+                        }
                     }
                 });
 
-                // Colisão Meteoro com Jogador
+                // Colisão física direta (Meteoro bateu no Foguete)
                 if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
-                    gameActive = false;
-                    overlay.style.display = 'flex';
-                    document.querySelector('h1').innerText = "FIM DE JOGO";
+                    explode(player.x, player.y, '#f55');
+                    gameOver("COLISÃO CRÍTICA! GAME OVER");
                 }
 
                 if(en.y > canvas.height + 50) enemies.splice(i, 1);
             });
 
-            // Partículas
+            // Partículas de explosões
             particles.forEach((p, i) => {
-                p.x += p.vx; p.y += p.vy; p.a -= 0.02;
-                ctx.fillStyle = `rgba(255, 100, 0, ${p.a})`;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                if(p.a <= 0) particles.splice(i, 1);
-            });
-
-            // Desenhar Foguete
-            drawRocket(player.x, player.y);
-
-            requestAnimationFrame(update);
-        }
-
-        function drawRocket(x, y) {
-            ctx.fillStyle = '#fff'; // Corpo
-            ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+15, y+10); ctx.lineTo(x-15, y+10); ctx.fill();
-            ctx.fillStyle = '#f00'; // Asas
-            ctx.fillRect(x-20, y, 10, 15); ctx.fillRect(x+10, y, 10, 15);
-            ctx.fillStyle = '#ff0'; // Fogo
-            if(Math.random()>0.5) ctx.fillRect(x-5, y+10, 10, 15);
-        }
-    </script>
-</body>
-</html>
+                p.x += p.vx; p.y += p.
