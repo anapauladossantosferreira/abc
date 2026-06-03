@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Tactical Waves</title>
+    <title>Space War: 10 Fases Pro</title>
     <style>
         body { 
             margin: 0; 
@@ -22,31 +22,33 @@
             gap: 30px;
         }
         .hud { 
-            font-size: 25px; 
+            font-size: 24px; 
             text-shadow: 2px 2px #000; 
         }
-        #wave-display { color: #00d4ff; }
-        #lives-display { color: #ff0055; }
-        #score-display { color: #ffcc00; }
-        
+        #score-val { color: #ffcc00; }
+        #lives-val { color: #ff3366; }
+        #phase-val { color: #00d4ff; }
+
         #overlay {
             position: absolute; 
             width: 100%; 
             height: 100%;
-            background: radial-gradient(circle, rgba(20,20,50,0.95) 0%, rgba(0,0,0,1) 100%);
+            background: radial-gradient(circle, rgba(15,15,35,0.95) 0%, rgba(0,0,0,1) 100%);
             display: flex; 
             flex-direction: column; 
             justify-content: center; 
             align-items: center; 
             z-index: 100;
             cursor: pointer;
+            text-align: center;
         }
         h1 {
-            font-size: 50px;
+            font-size: 55px;
             color: #00d4ff;
-            margin: 10px;
-            text-shadow: 0 0 15px #00d4ff;
+            margin: 5px;
+            text-shadow: 0 0 20px #00d4ff;
         }
+        p { font-size: 18px; margin: 5px; color: #ccc; }
         button {
             padding: 20px 60px; 
             font-size: 25px; 
@@ -54,10 +56,9 @@
             color: white; 
             border: none;
             border-radius: 50px; 
-            cursor: pointer; 
             font-weight: bold; 
-            margin-top: 20px;
-            box-shadow: 0 0 20px #ff0055;
+            margin-top: 25px;
+            box-shadow: 0 0 25px #ff0055;
         }
         canvas { display: block; }
     </style>
@@ -65,16 +66,19 @@
 <body>
 
     <div id="ui">
-        <div class="hud" id="wave-display">FASE: 1</div>
-        <div class="hud" id="lives-display">VIDAS: ❤️❤️❤️</div>
-        <div class="hud" id="score-display">SCORE: 0</div>
+        <div class="hud">FASE: <span id="phase-val">1</span>/10</div>
+        <div class="hud">VIDAS: <span id="lives-val">3</span></div>
+        <div class="hud">SCORE: <span id="score-val">0</span></div>
     </div>
 
-    <div id="overlay" onclick="startGame()">
+    <div id="overlay" onclick="clickStart()">
         <h1 id="main-title">GALAXY WAR</h1>
-        <p id="main-desc">ELIMINE TODOS OS METEOROS PARA AVANÇAR</p>
-        <p style="color: #ffaa00; font-size: 14px;">Cuidado: Os meteoros agora respondem e atiram de volta!</p>
-        <button id="btn-text">DECOLAR</button>
+        <p id="main-desc">Sobreviva a 10 fases intensas</p>
+        <p style="color: #ffcc00; font-size: 14px; margin-top: 15px;">
+            Mova o Mouse para Pilotar | Clique ou ESPAÇO para Atirar<br>
+            Cuidado: Os meteoros agora revidam!
+        </p>
+        <button id="btn-txt">DECOLAR</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -82,32 +86,37 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-        const waveTxt = document.getElementById('wave-display');
-        const livesTxt = document.getElementById('lives-display');
-        const scoreTxt = document.getElementById('score-display');
         const overlay = document.getElementById('overlay');
+        
+        // Elementos do HUD
+        const phaseTxt = document.getElementById('phase-val');
+        const livesTxt = document.getElementById('lives-val');
+        const scoreTxt = document.getElementById('score-val');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let gameActive = false;
-        let score = 0;
-        let currentWave = 1;
+        let phase = 1;
         let lives = 3;
+        let score = 0;
+        
         let loopId = null;
+        let spawnInterval = null;
 
         const player = { x: canvas.width/2, y: canvas.height/2, r: 18 };
         let playerShots = [];
-        let enemyShots = [];
         let enemies = [];
+        let enemyShots = [];
         let particles = [];
         const stars = [];
 
-        // Estrelas estáticas de fundo
-        for(let i=0; i<100; i++) {
+        // Fundo estrelado estático
+        for(let i=0; i<120; i++) {
             stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
+        // Rastreamento do mouse
         window.addEventListener('mousemove', e => {
             player.x = e.clientX;
             player.y = e.clientY;
@@ -117,61 +126,72 @@
         function playerFire() {
             if(gameActive) playerShots.push({x: player.x, y: player.y - 30});
         }
-        window.addEventListener('mousedown', playerFire);
-        window.addEventListener('keydown', e => { 
-            if(e.code === 'Space') { e.preventDefault(); if(!gameActive) startGame(); else playerFire(); }
+
+        window.addEventListener('mousedown', () => { if(gameActive) playerFire(); });
+        window.addEventListener('keydown', e => {
+            if(e.code === 'Space') {
+                e.preventDefault();
+                if(!gameActive) clickStart(); else playerFire();
+            }
         });
 
-        function startGame() {
+        // Acionador do botão de início à prova de falhas
+        function clickStart() {
             if (gameActive) return;
-            cancelAnimationFrame(loopId);
             
-            gameActive = true;
             overlay.style.display = 'none';
-            score = 0;
-            currentWave = 1;
+            
+            // Se o jogador perdeu tudo ou venceu as 10 fases, reseta o progresso do zero
+            if (lives <= 0 || phase > 10) {
+                phase = 1;
+                score = 0;
+            }
+            
+            // Configura a fase atual (Sempre dá 3 vidas no começo de cada fase)
             lives = 3;
             playerShots = [];
+            enemies = [];
             enemyShots = [];
             particles = [];
             
-            updateHUD();
-            generateWave();
-            update();
-        }
+            // Atualiza interface
+            phaseTxt.innerText = phase;
+            livesTxt.innerText = lives;
+            scoreTxt.innerText = score;
 
-        // Gera os meteoros exatos do nível atual
-        function generateWave() {
-            enemies = [];
-            // Fase 1 = 5 meteoros. Fase 2 = 8, Fase 3 = 11, etc.
-            const totalMeteoros = 5 + (currentWave - 1) * 3; 
+            // Ativa o motor do jogo de forma limpa
+            gameActive = true;
+            cancelAnimationFrame(loopId);
+            clearInterval(spawnInterval);
             
-            for(let i = 0; i < totalMeteoros; i++) {
-                enemies.push({
-                    x: Math.random() * (canvas.width - 60) + 30,
-                    y: Math.random() * -400 - 50, // Nascem acima da tela em tempos diferentes
-                    r: Math.random() * 15 + 20,
-                    speedY: Math.random() * 1.5 + 2,
-                    speedX: (Math.random() - 0.5) * 2, // Movimento diagonal leve
-                    lastShot: Date.now() + Math.random() * 2000 // Delay pro primeiro tiro recarregar
-                });
-            }
-            updateHUD();
+            update();
+            
+            // Frequência de meteoros baseada na fase (+4 meteoros por nível de intensidade)
+            let spawnSpeed = Math.max(150, 1000 - (phase * 85));
+            spawnInterval = setInterval(spawnEnemy, spawnSpeed);
         }
 
-        function updateHUD() {
-            waveTxt.innerText = "FASE: " + currentWave;
-            scoreTxt.innerText = "SCORE: " + score;
-            livesTxt.innerText = "VIDAS: " + "❤️".repeat(lives);
+        function spawnEnemy() {
+            if(!gameActive) return;
+            
+            // Velocidade e tamanho dos meteoros mudam conforme a fase
+            enemies.push({
+                x: Math.random() * canvas.width,
+                y: -50,
+                r: Math.random() * 18 + 22,
+                speed: 2 + (phase * 0.6),
+                lastShot: Date.now() + Math.random() * 1000 // Delay aleatório para o primeiro tiro
+            });
         }
 
-        function explode(x, y) {
-            for(let i=0; i<8; i++) {
+        function createExplosion(x, y, color) {
+            for(let i=0; i<12; i++) {
                 particles.push({
                     x, y, 
                     vx: (Math.random()-0.5)*10, 
                     vy: (Math.random()-0.5)*10, 
-                    a: 1
+                    a: 1,
+                    c: color
                 });
             }
         }
@@ -179,38 +199,31 @@
         function update() {
             if(!gameActive) return;
 
-            ctx.fillStyle = '#020205';
+            // Render do espaço profundo
+            ctx.fillStyle = '#020206';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Cenário Estrelas
+            // Fundo da Galáxia animado
             ctx.fillStyle = 'white';
             stars.forEach(s => {
-                s.y += 1; if(s.y > canvas.height) s.y = 0;
+                s.y += 1 + (phase * 0.1); 
+                if(s.y > canvas.height) s.y = 0;
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Tiros do Jogador
+            // Tiros do jogador (Verde)
             playerShots.forEach((sh, i) => {
-                sh.y -= 14;
-                ctx.fillStyle = '#00ff00';
-                ctx.fillRect(sh.x-2, sh.y, 4, 20);
-                if(sh.y < -20) playerShots.splice(i, 1);
+                sh.y -= 16;
+                ctx.fillStyle = '#00ff66';
+                ctx.fillRect(sh.x-2, sh.y, 4, 22);
+                if(sh.y < -30) playerShots.splice(i, 1);
             });
 
-            // Tiros dos Meteoros (Inimigos)
+            // Tiros dos Meteoros Inimigos (Vermelho Quente)
             enemyShots.forEach((esh, i) => {
-                esh.y += 7; // Velocidade do tiro do meteoro
+                esh.y += 8 + phase;
                 ctx.fillStyle = '#ff3300';
-                ctx.fillRect(esh.x-3, esh.y, 6, 15);
+                ctx.fillRect(esh.x-2, esh.y, 4, 18);
 
-                // Colisão: Tiro inimigo atingiu o jogador
+                // Colisão do laser inimigo com a sua nave
                 if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
-                    enemyShots.splice(i, 1);
-                    damagePlayer();
-                }
-
-                if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
-            });
-
-            // Movimentação e Inteligência dos Meteoros
-            enemies.forEach((en,
