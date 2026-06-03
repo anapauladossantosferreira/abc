@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Space War: 10 Fases Pro</title>
+    <title>Galaxy War - Versão Definitiva</title>
     <style>
         body { 
             margin: 0; 
@@ -18,37 +18,29 @@
             left: 20px; 
             z-index: 10; 
             pointer-events: none; 
-            display: flex;
-            gap: 30px;
         }
-        .hud { 
-            font-size: 24px; 
+        #score-display { 
+            font-size: 30px; 
+            color: #ffcc00; 
             text-shadow: 2px 2px #000; 
         }
-        #score-val { color: #ffcc00; }
-        #lives-val { color: #ff3366; }
-        #phase-val { color: #00d4ff; }
-
         #overlay {
             position: absolute; 
             width: 100%; 
             height: 100%;
-            background: radial-gradient(circle, rgba(15,15,35,0.95) 0%, rgba(0,0,0,1) 100%);
+            background: radial-gradient(circle, rgba(20,20,50,0.9) 0%, rgba(0,0,0,1) 100%);
             display: flex; 
             flex-direction: column; 
             justify-content: center; 
             align-items: center; 
             z-index: 100;
-            cursor: pointer;
-            text-align: center;
         }
         h1 {
-            font-size: 55px;
+            font-size: 50px;
             color: #00d4ff;
-            margin: 5px;
-            text-shadow: 0 0 20px #00d4ff;
+            margin: 10px;
+            text-shadow: 0 0 15px #00d4ff;
         }
-        p { font-size: 18px; margin: 5px; color: #ccc; }
         button {
             padding: 20px 60px; 
             font-size: 25px; 
@@ -56,29 +48,31 @@
             color: white; 
             border: none;
             border-radius: 50px; 
+            cursor: pointer; 
             font-weight: bold; 
-            margin-top: 25px;
-            box-shadow: 0 0 25px #ff0055;
+            margin-top: 20px;
+            box-shadow: 0 0 20px #ff0055;
         }
-        canvas { display: block; }
+        button:hover {
+            transform: scale(1.05);
+            background: #ff2b73;
+        }
+        canvas { 
+            display: block; 
+        }
     </style>
 </head>
 <body>
 
     <div id="ui">
-        <div class="hud">FASE: <span id="phase-val">1</span>/10</div>
-        <div class="hud">VIDAS: <span id="lives-val">3</span></div>
-        <div class="hud">SCORE: <span id="score-val">0</span></div>
+        <div id="score-display">SCORE: 0</div>
     </div>
 
-    <div id="overlay" onclick="clickStart()">
+    <div id="overlay">
         <h1 id="main-title">GALAXY WAR</h1>
-        <p id="main-desc">Sobreviva a 10 fases intensas</p>
-        <p style="color: #ffcc00; font-size: 14px; margin-top: 15px;">
-            Mova o Mouse para Pilotar | Clique ou ESPAÇO para Atirar<br>
-            Cuidado: Os meteoros agora revidam!
-        </p>
-        <button id="btn-txt">DECOLAR</button>
+        <p>CLIQUE NO BOTÃO OU APERTE ESPAÇO PARA JOGAR</p>
+        <p style="color: #00ff00; font-size: 14px;">Controles: Mova o mouse | Atire com Clique ou Espaço</p>
+        <button id="btn-jogar">JOGAR</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -86,112 +80,101 @@
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
+        const scoreTxt = document.getElementById('score-display');
         const overlay = document.getElementById('overlay');
-        
-        // Elementos do HUD
-        const phaseTxt = document.getElementById('phase-val');
-        const livesTxt = document.getElementById('lives-val');
-        const scoreTxt = document.getElementById('score-val');
+        const btnJogar = document.getElementById('btn-jogar');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let gameActive = false;
-        let phase = 1;
-        let lives = 3;
         let score = 0;
-        
         let loopId = null;
-        let spawnInterval = null;
+        let spawnTimeout = null;
 
-        const player = { x: canvas.width/2, y: canvas.height/2, r: 18 };
-        let playerShots = [];
+        const player = { x: canvas.width/2, y: canvas.height/2, r: 20 };
+        let shots = [];
         let enemies = [];
-        let enemyShots = [];
         let particles = [];
         const stars = [];
 
-        // Fundo estrelado estático
-        for(let i=0; i<120; i++) {
+        // Inicializa estrelas de fundo
+        for(let i=0; i<100; i++) {
             stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
-        // Rastreamento do mouse
+        // Movimento do mouse
         window.addEventListener('mousemove', e => {
             player.x = e.clientX;
             player.y = e.clientY;
         });
 
-        // Mecânica de tiro do jogador
-        function playerFire() {
-            if(gameActive) playerShots.push({x: player.x, y: player.y - 30});
+        // Função de disparo
+        function fire() {
+            if(gameActive) {
+                shots.push({x: player.x, y: player.y - 30});
+            }
         }
 
-        window.addEventListener('mousedown', () => { if(gameActive) playerFire(); });
+        // Cliques para atirar na tela
+        window.addEventListener('mousedown', () => {
+            if(gameActive) fire();
+        });
+
+        // Ouvinte do Teclado (Espaço atira ou inicia se estiver no menu)
         window.addEventListener('keydown', e => {
             if(e.code === 'Space') {
                 e.preventDefault();
-                if(!gameActive) clickStart(); else playerFire();
+                if(!gameActive) {
+                    initGame();
+                } else {
+                    fire();
+                }
             }
         });
 
-        // Acionador do botão de início à prova de falhas
-        function clickStart() {
+        // ASSOCIAÇÃO DIRETA DO BOTÃO VIA JAVASCRIPT (Garante o funcionamento)
+        btnJogar.addEventListener('click', (e) => {
+            e.stopPropagation(); // Impede o clique de se propagar incorretamente
+            initGame();
+        });
+
+        function initGame() {
             if (gameActive) return;
             
-            overlay.style.display = 'none';
-            
-            // Se o jogador perdeu tudo ou venceu as 10 fases, reseta o progresso do zero
-            if (lives <= 0 || phase > 10) {
-                phase = 1;
-                score = 0;
-            }
-            
-            // Configura a fase atual (Sempre dá 3 vidas no começo de cada fase)
-            lives = 3;
-            playerShots = [];
-            enemies = [];
-            enemyShots = [];
-            particles = [];
-            
-            // Atualiza interface
-            phaseTxt.innerText = phase;
-            livesTxt.innerText = lives;
-            scoreTxt.innerText = score;
-
-            // Ativa o motor do jogo de forma limpa
-            gameActive = true;
             cancelAnimationFrame(loopId);
-            clearInterval(spawnInterval);
+            clearTimeout(spawnTimeout);
+            
+            gameActive = true;
+            overlay.style.display = 'none';
+            score = 0;
+            enemies = [];
+            shots = [];
+            particles = [];
+            scoreTxt.innerText = "SCORE: 0";
             
             update();
-            
-            // Frequência de meteoros baseada na fase (+4 meteoros por nível de intensidade)
-            let spawnSpeed = Math.max(150, 1000 - (phase * 85));
-            spawnInterval = setInterval(spawnEnemy, spawnSpeed);
+            spawn();
         }
 
-        function spawnEnemy() {
+        function spawn() {
             if(!gameActive) return;
-            
-            // Velocidade e tamanho dos meteoros mudam conforme a fase
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
-                r: Math.random() * 18 + 22,
-                speed: 2 + (phase * 0.6),
-                lastShot: Date.now() + Math.random() * 1000 // Delay aleatório para o primeiro tiro
+                r: Math.random() * 20 + 20,
+                speed: 3 + (score/1000)
             });
+            spawnTimeout = setTimeout(spawn, Math.max(250, 1000 - (score/10)));
         }
 
-        function createExplosion(x, y, color) {
-            for(let i=0; i<12; i++) {
+        function explode(x, y) {
+            for(let i=0; i<10; i++) {
                 particles.push({
                     x, y, 
-                    vx: (Math.random()-0.5)*10, 
-                    vy: (Math.random()-0.5)*10, 
-                    a: 1,
-                    c: color
+                    vx: (Math.random()-0.5)*12, 
+                    vy: (Math.random()-0.5)*12, 
+                    a: 1
                 });
             }
         }
@@ -199,31 +182,93 @@
         function update() {
             if(!gameActive) return;
 
-            // Render do espaço profundo
-            ctx.fillStyle = '#020206';
+            ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Fundo da Galáxia animado
+            // Estrelas
             ctx.fillStyle = 'white';
             stars.forEach(s => {
-                s.y += 1 + (phase * 0.1); 
+                s.y += 1.5; 
                 if(s.y > canvas.height) s.y = 0;
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Tiros do jogador (Verde)
-            playerShots.forEach((sh, i) => {
+            // Tiros
+            shots.forEach((sh, i) => {
                 sh.y -= 16;
-                ctx.fillStyle = '#00ff66';
-                ctx.fillRect(sh.x-2, sh.y, 4, 22);
-                if(sh.y < -30) playerShots.splice(i, 1);
+                ctx.fillStyle = '#00ff00';
+                ctx.fillRect(sh.x-2, sh.y, 4, 25);
+                if(sh.y < -30) shots.splice(i, 1);
             });
 
-            // Tiros dos Meteoros Inimigos (Vermelho Quente)
-            enemyShots.forEach((esh, i) => {
-                esh.y += 8 + phase;
-                ctx.fillStyle = '#ff3300';
-                ctx.fillRect(esh.x-2, esh.y, 4, 18);
+            // Meteoros e colisões
+            enemies.forEach((en, i) => {
+                en.y += en.speed;
+                ctx.fillStyle = '#6e554f';
+                ctx.beginPath(); ctx.arc(en.x, en.y, en.r, 0, Math.PI*2); ctx.fill();
 
-                // Colisão do laser inimigo com a sua nave
-                if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
+                // Tiro atingiu meteoro
+                shots.forEach((sh, si) => {
+                    const distTiro = Math.hypot(sh.x - en.x, sh.y - en.y);
+                    if(distTiro < en.r) {
+                        explode(en.x, en.y);
+                        enemies.splice(i, 1);
+                        shots.splice(si, 1);
+                        score += 100;
+                        scoreTxt.innerText = "SCORE: " + score;
+                    }
+                });
+
+                // Meteoro atingiu jogador
+                const distPlayer = Math.hypot(player.x - en.x, player.y - en.y);
+                if(distPlayer < player.r + en.r) {
+                    gameOver();
+                }
+
+                if(en.y > canvas.height + 50) enemies.splice(i, 1);
+            });
+
+            // Partículas
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy; p.a -= 0.025;
+                ctx.fillStyle = `rgba(255, 90, 0, ${p.a})`;
+                ctx.fillRect(p.x, p.y, 4, 4);
+                if(p.a <= 0) particles.splice(i, 1);
+            });
+
+            drawRocket(player.x, player.y);
+
+            loopId = requestAnimationFrame(update);
+        }
+
+        function drawRocket(x, y) {
+            ctx.fillStyle = '#ff0055';
+            ctx.fillRect(x-22, y+2, 10, 18); 
+            ctx.fillRect(x+12, y+2, 10, 18);
+
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath(); 
+            ctx.moveTo(x, y-35); 
+            ctx.lineTo(x+15, y+15); 
+            ctx.lineTo(x-15, y+15); 
+            ctx.fill();
+            
+            ctx.fillStyle = Math.random() > 0.5 ? '#ffaa00' : '#ff3300';
+            ctx.fillRect(x-5, y+15, 10, 15);
+        }
+
+        function gameOver() {
+            gameActive = false;
+            overlay.style.display = 'flex';
+            document.getElementById('main-title').innerText = "GAME OVER";
+            document.getElementById('main-title').style.color = "#ff0055";
+            btnJogar.innerText = "RECOMEÇAR";
+        }
+
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        };
+    </script>
+</body>
+</html>
