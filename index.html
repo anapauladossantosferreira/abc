@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Missão Marte</title>
+    <title>Galaxy War - Missão Marte (Fixed)</title>
     <style>
         body { 
             margin: 0; 
@@ -43,7 +43,7 @@
             position: absolute; 
             width: 100%; 
             height: 100%;
-            background: radial-gradient(circle, rgba(20,20,50,0.95) 0%, rgba(0,0,0,1) 100%);
+            background: rgba(2, 2, 5, 0.9);
             display: flex; 
             flex-direction: column; 
             justify-content: center; 
@@ -57,7 +57,7 @@
             text-shadow: 0 0 15px #00d4ff;
             text-align: center;
         }
-        p { text-align: center; margin: 5px; }
+        p { text-align: center; margin: 5px; pointer-events: none; }
         button {
             padding: 20px 60px; 
             font-size: 25px; 
@@ -69,10 +69,6 @@
             font-weight: bold; 
             margin-top: 20px;
             box-shadow: 0 0 20px #ff0055;
-        }
-        button:hover {
-            transform: scale(1.05);
-            background: #ff2b73;
         }
         canvas { display: block; }
     </style>
@@ -88,7 +84,7 @@
     <div id="overlay">
         <h1 id="main-title">GALAXY WAR: MISSÃO MARTE</h1>
         <p id="main-desc">Destrua os inimigos e alcance a órbita de Marte!</p>
-        <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira | Enter: Inicia rápido</p>
+        <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira</p>
         <button id="btn-start">DECOLAR</button>
     </div>
 
@@ -124,12 +120,10 @@
         let particles = [];
         const stars = [];
 
-        // Inicializa estrelas
         for(let i=0; i<80; i++) {
             stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
-        // Seguidor de mouse (desativado durante a animação de vitória)
         window.addEventListener('mousemove', e => {
             if (gameActive && !gameWon) {
                 player.x = e.clientX;
@@ -141,18 +135,30 @@
             if(gameActive && !gameWon) playerShots.push({x: player.x, y: player.y - 30});
         }
 
-        window.addEventListener('mousedown', () => { if(gameActive) playerFire(); });
+        // Se o jogo NÃO estiver ativo, qualquer clique na janela força o início do jogo
+        window.addEventListener('mousedown', () => { 
+            if(gameActive) {
+                playerFire(); 
+            } else {
+                initGame();
+            }
+        });
         
         window.addEventListener('keydown', e => {
             if(e.code === 'Space') {
                 e.preventDefault();
-                playerFire();
+                if(gameActive) {
+                    playerFire();
+                } else {
+                    initGame();
+                }
             }
             if(e.code === 'Enter' && !gameActive) {
                 initGame();
             }
         });
 
+        // Clique direto no botão também mapeado
         btnStart.addEventListener('click', (e) => {
             e.stopPropagation();
             initGame();
@@ -172,7 +178,7 @@
             player.hp = 100;
             player.x = canvas.width / 2;
             player.y = canvas.height - 150;
-            mars.y = -300; // Reseta posição de Marte
+            mars.y = -300;
             
             enemies = [];
             playerShots = [];
@@ -226,7 +232,6 @@
             ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Desenha e move estrelas
             ctx.fillStyle = 'white';
             stars.forEach(s => {
                 s.y += starSpeed; 
@@ -234,33 +239,27 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Condição de Vitória engatada
             if (score >= 40000 && !gameWon) {
                 gameWon = true;
-                enemies = []; // Limpa ameaças
+                enemies = []; 
                 enemyShots = [];
-                starSpeed = 15; // Velocidade de dobra hiperespacial
+                starSpeed = 15; 
             }
 
-            // Cenário de Vitória Final: Chegada em Marte
             if (gameWon) {
-                // Desacelera as estrelas gradativamente quando Marte se aproxima
                 if (mars.y < mars.targetY) {
                     mars.y += 2;
                 } else {
                     starSpeed = Math.max(0.2, starSpeed - 0.2);
-                    // Foguete voa em direção ao planeta automaticamente
                     player.x += (mars.x - player.x) * 0.05;
                     player.y += ((mars.y + 100) - player.y) * 0.05;
 
-                    // Quando pousar efetivamente
                     if (Math.abs(player.y - (mars.y + 100)) < 5) {
                         triggerWinScreen();
                         return;
                     }
                 }
 
-                // Desenhar Planeta Marte Vermelho Cromático
                 let gradient = ctx.createRadialGradient(mars.x - 50, mars.y - 50, 10, mars.x, mars.y, mars.r);
                 gradient.addColorStop(0, '#ff7755');
                 gradient.addColorStop(0.6, '#cc4422');
@@ -272,7 +271,6 @@
                 ctx.fill();
             }
 
-            // Lasers do Jogador
             playerShots.forEach((sh, i) => {
                 sh.y -= 15;
                 ctx.fillStyle = '#00ff00';
@@ -280,7 +278,6 @@
                 if(sh.y < -20) playerShots.splice(i, 1);
             });
 
-            // Lasers Inimigos
             enemyShots.forEach((esh, i) => {
                 esh.y += esh.speed;
                 ctx.fillStyle = '#ffff00';
@@ -295,7 +292,6 @@
                 if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
             });
 
-            // Naves Inimigas (Apenas se não ganhou)
             if (!gameWon) {
                 enemies.forEach((en, i) => {
                     en.y += en.speed;
@@ -312,7 +308,7 @@
                             explode(en.x, en.y, '#ff5500');
                             enemies.splice(i, 1);
                             playerShots.splice(si, 1);
-                            score += 1000; // Ajustado para progressão fluida
+                            score += 1000; 
                             scoreTxt.innerText = "SCORE: " + score + " / 40000";
                         }
                     });
@@ -327,11 +323,9 @@
                 });
             }
 
-            // Atualiza Barra de Vida
             lifeFill.style.width = Math.max(0, player.hp) + "%";
             if(player.hp < 40) lifeFill.style.background = "#ff0000";
 
-            // Partículas
             particles.forEach((p, i) => {
                 p.x += p.vx; p.y += p.vy; p.a -= 0.03;
                 ctx.fillStyle = p.c;
@@ -350,4 +344,35 @@
             ctx.fillRect(x-20, y, 8, 15); ctx.fillRect(x+12, y, 8, 15);
             ctx.fillStyle = '#ffffff'; 
             ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+12, y+10); ctx.lineTo(x-12, y+10); ctx.fill();
-            ctx.fillStyle = '#ffaa00';
+            ctx.fillStyle = '#ffaa00'; 
+            if(Math.random()>0.4) ctx.fillRect(x-4, y+10, 8, 12);
+        }
+
+        function gameOver() {
+            gameActive = false;
+            clearInterval(enemyShootInterval);
+            overlay.style.display = 'flex';
+            mainTitle.innerText = "MISSÃO ABORTADA";
+            mainTitle.style.color = "#ff0055";
+            mainDesc.innerText = "Seu foguete foi destruído antes de chegar a Marte.";
+            btnStart.innerText = "RECOMENÇAR";
+        }
+
+        function triggerWinScreen() {
+            gameActive = false;
+            clearInterval(enemyShootInterval);
+            overlay.style.display = 'flex';
+            mainTitle.innerText = "MISSÃO CUMPRIDA!";
+            mainTitle.style.color = "#00ff00";
+            mainDesc.innerText = "Parabéns! Você alcançou Marte com sucesso!";
+            btnStart.innerText = "REJOGAR MISSÃO";
+        }
+
+        window.onresize = () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            mars.x = canvas.width / 2;
+        };
+    </script>
+</body>
+</html>
