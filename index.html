@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Interstellar War - Jornada dos 8 Planetas</title>
+    <title>Interstellar War - Modo Contínuo</title>
     <style>
         body { 
             margin: 0; 
@@ -81,14 +81,14 @@
     <div id="ui">
         <div id="phase-display" class="hud">FASE: <span id="current-phase">1</span>/8</div>
         <div id="target-display" class="hud">ALVO: <span id="planet-name">Mercúrio</span></div>
-        <div id="score-display" class="hud">SCORE: 0 / 27000</div>
+        <div id="score-display" class="hud">SCORE: 0 / 100</div>
         <div class="hud">VIDA:</div>
         <div id="life-bar"><div id="life-fill"></div></div>
     </div>
 
     <div id="overlay">
-        <h1 id="main-title">GALAXY WAR: SISTEMA SOLAR</h1>
-        <p id="main-desc">Destrua inimigos para navegar pelos 8 planetas!</p>
+        <h1 id="main-title">GALAXY WAR: SEM PAUSAS</h1>
+        <p id="main-desc">Destrua 1 inimigo por planeta para avançar instantaneamente!</p>
         <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira</p>
         <button id="btn-start">DECOLAR</button>
     </div>
@@ -119,7 +119,6 @@
         let enemyShootInterval = null;
         let starSpeed = 1;
 
-        // Configurações visuais dos 8 planetas
         const planetList = [
             { name: "Mercúrio", color1: "#8c8c8c", color2: "#595959", color3: "#262626" },
             { name: "Vênus",    color1: "#e39b5d", color2: "#bf6a2a", color3: "#592b0c" },
@@ -159,7 +158,7 @@
             if(gameActive) {
                 playerFire(); 
             } else {
-                initGame(true); // Reinicia do zero no clique inicial ou game over
+                initGame(true);
             }
         });
         
@@ -179,16 +178,10 @@
 
         btnStart.addEventListener('click', (e) => {
             e.stopPropagation();
-            if(mainTitle.innerText === "FASE CONCLUÍDA!") {
-                initGame(false); // Passa para a próxima fase mantendo dados
-            } else {
-                initGame(true);  // Novo jogo total
-            }
+            initGame(true); 
         });
 
         function initGame(resetAll = true) {
-            if (gameActive) return;
-            
             cancelAnimationFrame(loopId);
             clearTimeout(spawnTimeout);
             clearInterval(enemyShootInterval);
@@ -202,9 +195,7 @@
             player.y = canvas.height - 150;
             activePlanet.y = -350;
 
-            if (resetAll) {
-                currentPhase = 1;
-            }
+            if (resetAll) currentPhase = 1;
 
             phaseTxt.innerText = currentPhase;
             planetTxt.innerText = planetList[currentPhase - 1].name;
@@ -215,7 +206,7 @@
             particles = [];
             
             overlay.style.display = 'none';
-            scoreTxt.innerText = "SCORE: 0 / 27000";
+            scoreTxt.innerText = "SCORE: 0 / 100";
             lifeFill.style.width = "100%";
             lifeFill.style.background = "#00ff00";
             
@@ -230,6 +221,26 @@
                     }
                 });
             }, Math.max(500, 1200 - currentPhase * 80));
+        }
+
+        function nextPhaseAutomated() {
+            // Configura a transição direta em segundo plano
+            phaseTransition = false;
+            starSpeed = 1;
+            score = 0;
+            player.hp = Math.min(100, player.hp + 30); // Recupera um pouco de vida ao passar de fase
+            player.y = canvas.height - 150;
+            activePlanet.y = -350;
+            
+            enemies = [];
+            playerShots = [];
+            enemyShots = [];
+            
+            phaseTxt.innerText = currentPhase;
+            planetTxt.innerText = planetList[currentPhase - 1].name;
+            scoreTxt.innerText = "SCORE: 0 / 100";
+            
+            spawn();
         }
 
         function spawn() {
@@ -261,7 +272,6 @@
             ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Fundo estelar
             ctx.fillStyle = 'white';
             stars.forEach(s => {
                 s.y += starSpeed; 
@@ -269,37 +279,39 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Disparou transição planetária ao atingir 27000 pontos
-            if (score >= 27000 && !phaseTransition) {
+            // Ativa transição automática com limite de score em 100
+            if (score >= 100 && !phaseTransition) {
                 phaseTransition = true;
                 enemies = []; 
                 enemyShots = [];
-                starSpeed = 16; 
+                starSpeed = 20; // Super velocidade de dobra espacial
             }
 
-            // Animação de aproximação do planeta
             if (phaseTransition) {
                 if (activePlanet.y < activePlanet.targetY) {
-                    activePlanet.y += 2;
+                    activePlanet.y += 3;
                 } else {
-                    starSpeed = Math.max(0.2, starSpeed - 0.2);
+                    starSpeed = Math.max(0.2, starSpeed - 0.4);
                     player.x += (activePlanet.x - player.x) * 0.05;
                     player.y += ((activePlanet.y + 90) - player.y) * 0.05;
 
-                    if (Math.abs(player.y - (activePlanet.y + 90)) < 5) {
-                        triggerPhaseWin();
-                        return;
+                    if (Math.abs(player.y - (activePlanet.y + 90)) < 6) {
+                        if (currentPhase < 8) {
+                            currentPhase++;
+                            nextPhaseAutomated(); // Carrega o próximo planeta sem telas de pausa
+                        } else {
+                            triggerGameWin(); // Vitória final em Netuno
+                            return;
+                        }
                     }
                 }
 
-                // Renderiza o planeta atual com sua paleta específica
                 let pData = planetList[currentPhase - 1];
                 let gradient = ctx.createRadialGradient(activePlanet.x - 50, activePlanet.y - 50, 10, activePlanet.x, activePlanet.y, activePlanet.r);
                 gradient.addColorStop(0, pData.color1);
                 gradient.addColorStop(0.6, pData.color2);
                 gradient.addColorStop(1, pData.color3);
                 
-                // Desenhar anéis estruturais se for Saturno
                 if (pData.hasRings) {
                     ctx.strokeStyle = "rgba(197, 160, 89, 0.5)";
                     ctx.lineWidth = 15;
@@ -318,7 +330,6 @@
                 ctx.fill();
             }
 
-            // Mover Lasers Aliados
             playerShots.forEach((sh, i) => {
                 sh.y -= 15;
                 ctx.fillStyle = '#00ff00';
@@ -326,7 +337,6 @@
                 if(sh.y < -20) playerShots.splice(i, 1);
             });
 
-            // Mover Lasers Rivais
             enemyShots.forEach((esh, i) => {
                 esh.y += esh.speed;
                 ctx.fillStyle = '#ffff00';
@@ -341,7 +351,6 @@
                 if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
             });
 
-            // Gerenciar Naves Adversárias
             if (!phaseTransition) {
                 enemies.forEach((en, i) => {
                     en.y += en.speed;
@@ -358,8 +367,8 @@
                             explode(en.x, en.y, '#ff5500');
                             enemies.splice(i, 1);
                             playerShots.splice(si, 1);
-                            score += 700; // Alterado exatamente para os 700 pontos por abate solicitados
-                            scoreTxt.innerText = "SCORE: " + score + " / 27000";
+                            score += 700; // Mantido 700 pontos por abate
+                            scoreTxt.innerText = "SCORE: " + score + " / 100";
                         }
                     });
 
@@ -376,7 +385,6 @@
             lifeFill.style.width = Math.max(0, player.hp) + "%";
             if(player.hp < 40) lifeFill.style.background = "#ff0000";
 
-            // Partículas
             particles.forEach((p, i) => {
                 p.x += p.vx; p.y += p.vy; p.a -= 0.03;
                 ctx.fillStyle = p.c;
@@ -405,27 +413,18 @@
             overlay.style.display = 'flex';
             mainTitle.innerText = "MISSÃO COMPROMETIDA";
             mainTitle.style.color = "#ff0055";
-            mainDesc.innerText = `Seu foguete caiu na órbita de ${planetList[currentPhase-1].name}.`;
+            mainDesc.innerText = `Você caiu defendendo a órbita de ${planetList[currentPhase-1].name}.`;
             btnStart.innerText = "RECOMENÇAR JORNADA";
         }
 
-        function triggerPhaseWin() {
+        function triggerGameWin() {
             gameActive = false;
             clearInterval(enemyShootInterval);
             overlay.style.display = 'flex';
-
-            if(currentPhase < 8) {
-                mainTitle.innerText = "FASE CONCLUÍDA!";
-                mainTitle.style.color = "#00ff00";
-                mainDesc.innerText = `Você orbitou com sucesso ${planetList[currentPhase-1].name}. Prepare-se para saltar até ${planetList[currentPhase].name}!`;
-                btnStart.innerText = "PRÓXIMO PLANETA";
-                currentPhase++; // Incrementa para carregar o próximo mapa
-            } else {
-                mainTitle.innerText = "CONQUISTADOR DO SISTEMA SOLAR!";
-                mainTitle.style.color = "#ffcc00";
-                mainDesc.innerText = "Incrível! Você atravessou de Mercúrio até Netuno e superou todas as ameaças da galáxia!";
-                btnStart.innerText = "REINICIAR ODISSÉIA";
-            }
+            mainTitle.innerText = "SISTEMA SOLAR CONQUISTADO!";
+            mainTitle.style.color = "#ffcc00";
+            mainDesc.innerText = "Incrível! Você atravessou todos os 8 planetas em tempo recorde sem pausas!";
+            btnStart.innerText = "REINICIAR ODISSÉIA";
         }
 
         window.onresize = () => {
