@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Galaxy War - Missão Marte (Fixed)</title>
+    <title>Galaxy War - Missão Marte (27K)</title>
     <style>
         body { 
             margin: 0; 
@@ -76,7 +76,7 @@
 <body>
 
     <div id="ui">
-        <div id="score-display" class="hud">SCORE: 0 / 40000</div>
+        <div id="score-display" class="hud">SCORE: 0 / 27000</div>
         <div class="hud">VIDA:</div>
         <div id="life-bar"><div id="life-fill"></div></div>
     </div>
@@ -135,7 +135,6 @@
             if(gameActive && !gameWon) playerShots.push({x: player.x, y: player.y - 30});
         }
 
-        // Se o jogo NÃO estiver ativo, qualquer clique na janela força o início do jogo
         window.addEventListener('mousedown', () => { 
             if(gameActive) {
                 playerFire(); 
@@ -158,7 +157,6 @@
             }
         });
 
-        // Clique direto no botão também mapeado
         btnStart.addEventListener('click', (e) => {
             e.stopPropagation();
             initGame();
@@ -186,7 +184,7 @@
             particles = [];
             
             overlay.style.display = 'none';
-            scoreTxt.innerText = "SCORE: 0 / 40000";
+            scoreTxt.innerText = "SCORE: 0 / 27000";
             lifeFill.style.width = "100%";
             lifeFill.style.background = "#00ff00";
             
@@ -239,7 +237,8 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            if (score >= 40000 && !gameWon) {
+            // Condição de Vitória mudada para 27000
+            if (score >= 27000 && !gameWon) {
                 gameWon = true;
                 enemies = []; 
                 enemyShots = [];
@@ -308,8 +307,8 @@
                             explode(en.x, en.y, '#ff5500');
                             enemies.splice(i, 1);
                             playerShots.splice(si, 1);
-                            score += 1000; 
-                            scoreTxt.innerText = "SCORE: " + score + " / 40000";
+                            score += 3000; // Pontuação por abate subiu para alcançar os 27k em 9 acertos
+                            scoreTxt.innerText = "SCORE: " + score + " / 27000";
                         }
                     });
 
