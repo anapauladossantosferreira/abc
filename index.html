@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Space Galaxy Laser War</title>
+    <title>Galaxy War - Missão Marte</title>
     <style>
         body { 
             margin: 0; 
@@ -55,7 +55,9 @@
             color: #00d4ff;
             margin: 10px;
             text-shadow: 0 0 15px #00d4ff;
+            text-align: center;
         }
+        p { text-align: center; margin: 5px; }
         button {
             padding: 20px 60px; 
             font-size: 25px; 
@@ -78,16 +80,16 @@
 <body>
 
     <div id="ui">
-        <div id="score-display" class="hud">SCORE: 0</div>
+        <div id="score-display" class="hud">SCORE: 0 / 40000</div>
         <div class="hud">VIDA:</div>
         <div id="life-bar"><div id="life-fill"></div></div>
     </div>
 
     <div id="overlay">
-        <h1 id="main-title">GALAXY LASER WAR</h1>
-        <p>REVIDE OS ATAQUES INIMIGOS!</p>
-        <p style="color: #00ff00; font-size: 14px;">Mouse: Move | Clique ou Espaço: Atira | Enter: Inicia</p>
-        <button id="btn-start">JOGAR</button>
+        <h1 id="main-title">GALAXY WAR: MISSÃO MARTE</h1>
+        <p id="main-desc">Destrua os inimigos e alcance a órbita de Marte!</p>
+        <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira | Enter: Inicia rápido</p>
+        <button id="btn-start">DECOLAR</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -99,37 +101,44 @@
         const lifeFill = document.getElementById('life-fill');
         const overlay = document.getElementById('overlay');
         const btnStart = document.getElementById('btn-start');
+        const mainTitle = document.getElementById('main-title');
+        const mainDesc = document.getElementById('main-desc');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let gameActive = false;
+        let gameWon = false;
         let score = 0;
         let loopId = null;
         let spawnTimeout = null;
         let enemyShootInterval = null;
+        let starSpeed = 1;
 
         const player = { x: canvas.width/2, y: canvas.height/2, r: 20, hp: 100 };
+        const mars = { x: canvas.width / 2, y: -300, r: 250, targetY: -50 };
+        
         let playerShots = [];
         let enemyShots = [];
         let enemies = [];
         let particles = [];
         const stars = [];
 
-        // Inicializa estrelas de fundo
+        // Inicializa estrelas
         for(let i=0; i<80; i++) {
             stars.push({x: Math.random()*canvas.width, y: Math.random()*canvas.height, s: Math.random()*2});
         }
 
-        // Movimento do jogador
+        // Seguidor de mouse (desativado durante a animação de vitória)
         window.addEventListener('mousemove', e => {
-            player.x = e.clientX;
-            player.y = e.clientY;
+            if (gameActive && !gameWon) {
+                player.x = e.clientX;
+                player.y = e.clientY;
+            }
         });
 
-        // Mecânica de tiro do jogador
         function playerFire() {
-            if(gameActive) playerShots.push({x: player.x, y: player.y - 30});
+            if(gameActive && !gameWon) playerShots.push({x: player.x, y: player.y - 30});
         }
 
         window.addEventListener('mousedown', () => { if(gameActive) playerFire(); });
@@ -144,7 +153,6 @@
             }
         });
 
-        // Ativação do Botão Blindada por JS
         btnStart.addEventListener('click', (e) => {
             e.stopPropagation();
             initGame();
@@ -158,48 +166,54 @@
             clearInterval(enemyShootInterval);
             
             gameActive = true;
-            overlay.style.display = 'none';
+            gameWon = false;
+            starSpeed = 1;
             score = 0;
             player.hp = 100;
+            player.x = canvas.width / 2;
+            player.y = canvas.height - 150;
+            mars.y = -300; // Reseta posição de Marte
+            
             enemies = [];
             playerShots = [];
             enemyShots = [];
             particles = [];
-            scoreTxt.innerText = "SCORE: 0";
+            
+            overlay.style.display = 'none';
+            scoreTxt.innerText = "SCORE: 0 / 40000";
             lifeFill.style.width = "100%";
             lifeFill.style.background = "#00ff00";
             
             update();
             spawn();
             
-            // Faz os inimigos vivos atirarem a cada 1.2 segundos
             enemyShootInterval = setInterval(() => {
-                if(!gameActive) return;
+                if(!gameActive || gameWon) return;
                 enemies.forEach(en => {
                     if(en.y > 0 && en.y < canvas.height) {
                         enemyShots.push({x: en.x, y: en.y + en.r, speed: 7});
                     }
                 });
-            }, 1200);
+            }, 1100);
         }
 
         function spawn() {
-            if(!gameActive) return;
+            if(!gameActive || gameWon) return;
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
                 r: 22,
-                speed: 2 + (score/2000)
+                speed: 2.5 + (score/3000)
             });
-            spawnTimeout = setTimeout(spawn, Math.max(300, 1200 - (score/8)));
+            spawnTimeout = setTimeout(spawn, Math.max(250, 1100 - (score/10)));
         }
 
         function explode(x, y, color) {
-            for(let i=0; i<8; i++) {
+            for(let i=0; i<10; i++) {
                 particles.push({
                     x, y, 
-                    vx: (Math.random()-0.5)*10, 
-                    vy: (Math.random()-0.5)*10, 
+                    vx: (Math.random()-0.5)*12, 
+                    vy: (Math.random()-0.5)*12, 
                     a: 1,
                     c: color
                 });
@@ -212,74 +226,109 @@
             ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Estrelas
+            // Desenha e move estrelas
             ctx.fillStyle = 'white';
             stars.forEach(s => {
-                s.y += 1; if(s.y > canvas.height) s.y = 0;
+                s.y += starSpeed; 
+                if(s.y > canvas.height) s.y = 0;
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Tiros do Jogador (Verdes)
+            // Condição de Vitória engatada
+            if (score >= 40000 && !gameWon) {
+                gameWon = true;
+                enemies = []; // Limpa ameaças
+                enemyShots = [];
+                starSpeed = 15; // Velocidade de dobra hiperespacial
+            }
+
+            // Cenário de Vitória Final: Chegada em Marte
+            if (gameWon) {
+                // Desacelera as estrelas gradativamente quando Marte se aproxima
+                if (mars.y < mars.targetY) {
+                    mars.y += 2;
+                } else {
+                    starSpeed = Math.max(0.2, starSpeed - 0.2);
+                    // Foguete voa em direção ao planeta automaticamente
+                    player.x += (mars.x - player.x) * 0.05;
+                    player.y += ((mars.y + 100) - player.y) * 0.05;
+
+                    // Quando pousar efetivamente
+                    if (Math.abs(player.y - (mars.y + 100)) < 5) {
+                        triggerWinScreen();
+                        return;
+                    }
+                }
+
+                // Desenhar Planeta Marte Vermelho Cromático
+                let gradient = ctx.createRadialGradient(mars.x - 50, mars.y - 50, 10, mars.x, mars.y, mars.r);
+                gradient.addColorStop(0, '#ff7755');
+                gradient.addColorStop(0.6, '#cc4422');
+                gradient.addColorStop(1, '#441105');
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(mars.x, mars.y, mars.r, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // Lasers do Jogador
             playerShots.forEach((sh, i) => {
-                sh.y -= 14;
+                sh.y -= 15;
                 ctx.fillStyle = '#00ff00';
                 ctx.fillRect(sh.x-2, sh.y, 4, 20);
                 if(sh.y < -20) playerShots.splice(i, 1);
             });
 
-            // Tiros dos Inimigos (Amarelos)
+            // Lasers Inimigos
             enemyShots.forEach((esh, i) => {
                 esh.y += esh.speed;
                 ctx.fillStyle = '#ffff00';
                 ctx.fillRect(esh.x-2, esh.y, 4, 15);
 
-                // Tiro inimigo acertou o jogador
                 if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
                     enemyShots.splice(i, 1);
                     player.hp -= 15;
                     explode(player.x, player.y, '#ff0055');
                     if(player.hp <= 0) gameOver();
                 }
-
                 if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
             });
 
-            // Inimigos e Colisões de Impacto
-            enemies.forEach((en, i) => {
-                en.y += en.speed;
-                
-                // Desenha nave inimiga (Triângulo Vermelho)
-                ctx.fillStyle = '#ff3333';
-                ctx.beginPath();
-                ctx.moveTo(en.x, en.y + en.r);
-                ctx.lineTo(en.x - en.r, en.y - en.r);
-                ctx.lineTo(en.x + en.r, en.y - en.r);
-                ctx.fill();
+            // Naves Inimigas (Apenas se não ganhou)
+            if (!gameWon) {
+                enemies.forEach((en, i) => {
+                    en.y += en.speed;
+                    
+                    ctx.fillStyle = '#ff3333';
+                    ctx.beginPath();
+                    ctx.moveTo(en.x, en.y + en.r);
+                    ctx.lineTo(en.x - en.r, en.y - en.r);
+                    ctx.lineTo(en.x + en.r, en.y - en.r);
+                    ctx.fill();
 
-                // Seu tiro acertou o inimigo
-                playerShots.forEach((sh, si) => {
-                    if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
-                        explode(en.x, en.y, '#ff5500');
+                    playerShots.forEach((sh, si) => {
+                        if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
+                            explode(en.x, en.y, '#ff5500');
+                            enemies.splice(i, 1);
+                            playerShots.splice(si, 1);
+                            score += 1000; // Ajustado para progressão fluida
+                            scoreTxt.innerText = "SCORE: " + score + " / 40000";
+                        }
+                    });
+
+                    if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
+                        player.hp -= 30;
+                        explode(en.x, en.y, '#ff0000');
                         enemies.splice(i, 1);
-                        playerShots.splice(si, 1);
-                        score += 100;
-                        scoreTxt.innerText = "SCORE: " + score;
+                        if(player.hp <= 0) gameOver();
                     }
+                    if(en.y > canvas.height + 50) enemies.splice(i, 1);
                 });
+            }
 
-                // Colisão direta de naves
-                if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
-                    player.hp -= 35;
-                    explode(en.x, en.y, '#ff0000');
-                    enemies.splice(i, 1);
-                    if(player.hp <= 0) gameOver();
-                }
-
-                if(en.y > canvas.height + 50) enemies.splice(i, 1);
-            });
-
-            // Atualiza barra de vida na UI
-            lifeFill.style.width = player.hp + "%";
+            // Atualiza Barra de Vida
+            lifeFill.style.width = Math.max(0, player.hp) + "%";
             if(player.hp < 40) lifeFill.style.background = "#ff0000";
 
             // Partículas
@@ -297,27 +346,8 @@
         }
 
         function drawRocket(x, y) {
-            ctx.fillStyle = '#ff0055'; // Asas
+            ctx.fillStyle = '#ff0055'; 
             ctx.fillRect(x-20, y, 8, 15); ctx.fillRect(x+12, y, 8, 15);
-            ctx.fillStyle = '#ffffff'; // Corpo
+            ctx.fillStyle = '#ffffff'; 
             ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+12, y+10); ctx.lineTo(x-12, y+10); ctx.fill();
-            ctx.fillStyle = '#ffaa00'; // Fogo
-            if(Math.random()>0.4) ctx.fillRect(x-4, y+10, 8, 12);
-        }
-
-        function gameOver() {
-            gameActive = false;
-            clearInterval(enemyShootInterval);
-            overlay.style.display = 'flex';
-            document.getElementById('main-title').innerText = "CONFRONTO ENCERRADO";
-            document.getElementById('main-title').style.color = "#ff0055";
-            btnStart.innerText = "RECOMANÇAR REVOLUÇÃO";
-        }
-
-        window.onresize = () => {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-        };
-    </script>
-</body>
-</html>
+            ctx.fillStyle = '#ffaa00';
