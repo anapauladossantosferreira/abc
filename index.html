@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Interstellar War - Modo Contínuo</title>
+    <title>Interstellar War - Desafio 27K</title>
     <style>
         body { 
             margin: 0; 
@@ -81,14 +81,14 @@
     <div id="ui">
         <div id="phase-display" class="hud">FASE: <span id="current-phase">1</span>/8</div>
         <div id="target-display" class="hud">ALVO: <span id="planet-name">Mercúrio</span></div>
-        <div id="score-display" class="hud">SCORE: 0 / 100</div>
+        <div id="score-display" class="hud">SCORE: 0 / 27000</div>
         <div class="hud">VIDA:</div>
         <div id="life-bar"><div id="life-fill"></div></div>
     </div>
 
     <div id="overlay">
-        <h1 id="main-title">GALAXY WAR: SEM PAUSAS</h1>
-        <p id="main-desc">Destrua 1 inimigo por planeta para avançar instantaneamente!</p>
+        <h1 id="main-title">GALAXY WAR: 8 PLANETAS</h1>
+        <p id="main-desc">Consiga 27.000 pontos em cada planeta para avançar sem pausas!</p>
         <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira</p>
         <button id="btn-start">DECOLAR</button>
     </div>
@@ -206,7 +206,7 @@
             particles = [];
             
             overlay.style.display = 'none';
-            scoreTxt.innerText = "SCORE: 0 / 100";
+            scoreTxt.innerText = "SCORE: 0 / 27000";
             lifeFill.style.width = "100%";
             lifeFill.style.background = "#00ff00";
             
@@ -224,11 +224,10 @@
         }
 
         function nextPhaseAutomated() {
-            // Configura a transição direta em segundo plano
             phaseTransition = false;
             starSpeed = 1;
             score = 0;
-            player.hp = Math.min(100, player.hp + 30); // Recupera um pouco de vida ao passar de fase
+            player.hp = Math.min(100, player.hp + 30); 
             player.y = canvas.height - 150;
             activePlanet.y = -350;
             
@@ -238,7 +237,7 @@
             
             phaseTxt.innerText = currentPhase;
             planetTxt.innerText = planetList[currentPhase - 1].name;
-            scoreTxt.innerText = "SCORE: 0 / 100";
+            scoreTxt.innerText = "SCORE: 0 / 27000";
             
             spawn();
         }
@@ -251,7 +250,8 @@
                 r: 22,
                 speed: 2.5 + currentPhase * 0.4
             });
-            spawnTimeout = setTimeout(spawn, Math.max(200, 1100 - (score/8)));
+            // Ajuste leve na taxa de surgimento com base no score proporcional
+            spawnTimeout = setTimeout(spawn, Math.max(200, 1100 - (score/200)));
         }
 
         function explode(x, y, color) {
@@ -279,12 +279,12 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Ativa transição automática com limite de score em 100
-            if (score >= 100 && !phaseTransition) {
+            // Transição configurada para bater o limite de 27000
+            if (score >= 27000 && !phaseTransition) {
                 phaseTransition = true;
                 enemies = []; 
                 enemyShots = [];
-                starSpeed = 20; // Super velocidade de dobra espacial
+                starSpeed = 20; 
             }
 
             if (phaseTransition) {
@@ -298,9 +298,9 @@
                     if (Math.abs(player.y - (activePlanet.y + 90)) < 6) {
                         if (currentPhase < 8) {
                             currentPhase++;
-                            nextPhaseAutomated(); // Carrega o próximo planeta sem telas de pausa
+                            nextPhaseAutomated(); 
                         } else {
-                            triggerGameWin(); // Vitória final em Netuno
+                            triggerGameWin(); 
                             return;
                         }
                     }
@@ -367,8 +367,8 @@
                             explode(en.x, en.y, '#ff5500');
                             enemies.splice(i, 1);
                             playerShots.splice(si, 1);
-                            score += 700; // Mantido 700 pontos por abate
-                            scoreTxt.innerText = "SCORE: " + score + " / 100";
+                            score += 100; // Pontuação reduzida para 100 por abate
+                            scoreTxt.innerText = "SCORE: " + score + " / 27000";
                         }
                     });
 
@@ -423,7 +423,7 @@
             overlay.style.display = 'flex';
             mainTitle.innerText = "SISTEMA SOLAR CONQUISTADO!";
             mainTitle.style.color = "#ffcc00";
-            mainDesc.innerText = "Incrível! Você atravessou todos os 8 planetas em tempo recorde sem pausas!";
+            mainDesc.innerText = "Incrível! Você atravessou todos os 8 planetas do nosso sistema!";
             btnStart.innerText = "REINICIAR ODISSÉIA";
         }
 
