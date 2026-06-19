@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Interstellar War - Correção do Botão</title>
+    <title>Interstellar War - O Final Secreto</title>
     <style>
         body { 
             margin: 0; 
@@ -72,7 +72,7 @@
             font-weight: bold; 
             margin-top: 20px;
             box-shadow: 0 0 20px #ff0055;
-            pointer-events: auto; /* Garante que o botão seja clicável */
+            pointer-events: auto;
         }
         canvas { display: block; }
     </style>
@@ -113,12 +113,18 @@
 
         let gameActive = false;
         let phaseTransition = false;
+        let gameWon = false; // Nova flag para controlar o estado final de vitória
         let currentPhase = 1;
         let score = 0;
         let loopId = null;
         let spawnTimeout = null;
         let enemyShootInterval = null;
         let starSpeed = 1;
+
+        // Variáveis da animação do OVNI final
+        let ufoX = -100;
+        let ufoY = canvas.height / 2;
+        let ufoAngle = 0;
 
         const planetList = [
             { name: "Mercúrio", color1: "#8c8c8c", color2: "#595959", color3: "#262626" },
@@ -145,18 +151,17 @@
         }
 
         window.addEventListener('mousemove', e => {
-            if (gameActive && !phaseTransition) {
+            if (gameActive && !phaseTransition && !gameWon) {
                 player.x = e.clientX;
                 player.y = e.clientY;
             }
         });
 
         function playerFire() {
-            if(gameActive && !phaseTransition) playerShots.push({x: player.x, y: player.y - 30});
+            if(gameActive && !phaseTransition && !gameWon) playerShots.push({x: player.x, y: player.y - 30});
         }
 
-        // Modificado para atirar apenas se o jogo estiver rodando
-        window.addEventListener('mousedown', (e) => { 
+        window.addEventListener('mousedown', () => { 
             if(gameActive) {
                 playerFire(); 
             }
@@ -171,12 +176,8 @@
                     initGame(true);
                 }
             }
-            if(e.code === 'Enter' && !gameActive) {
-                initGame(true);
-            }
         });
 
-        // O botão agora cancela outros eventos e inicia o jogo sem falhar
         btnStart.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -190,12 +191,14 @@
             
             gameActive = true;
             phaseTransition = false;
+            gameWon = false;
             starSpeed = 1;
             score = 0;
             player.hp = 100;
             player.x = canvas.width / 2;
             player.y = canvas.height - 150;
             activePlanet.y = -350;
+            ufoX = -100; // Reseta posição do OVNI
 
             if (resetAll) currentPhase = 1;
 
@@ -216,7 +219,7 @@
             spawn();
             
             enemyShootInterval = setInterval(() => {
-                if(!gameActive || phaseTransition) return;
+                if(!gameActive || phaseTransition || gameWon) return;
                 enemies.forEach(en => {
                     if(en.y > 0 && en.y < canvas.height) {
                         enemyShots.push({x: en.x, y: en.y + en.r, speed: 6 + currentPhase*0.5});
@@ -245,7 +248,7 @@
         }
 
         function spawn() {
-            if(!gameActive || phaseTransition) return;
+            if(!gameActive || phaseTransition || gameWon) return;
             enemies.push({
                 x: Math.random() * canvas.width,
                 y: -50,
@@ -273,6 +276,7 @@
             ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+            // Estrelas de fundo
             ctx.fillStyle = 'white';
             stars.forEach(s => {
                 s.y += starSpeed; 
@@ -280,6 +284,7 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
+            // Ativar animação de vitória total se Netuno (fase 8) for completado
             if (score >= 20000 && !phaseTransition) {
                 phaseTransition = true;
                 enemies = []; 
@@ -287,7 +292,8 @@
                 starSpeed = 20; 
             }
 
-            if (phaseTransition) {
+            // Controle de transições normais e finais
+            if (phaseTransition && !gameWon) {
                 if (activePlanet.y < activePlanet.targetY) {
                     activePlanet.y += 3;
                 } else {
@@ -295,17 +301,19 @@
                     player.x += (activePlanet.x - player.x) * 0.05;
                     player.y += ((activePlanet.y + 90) - player.y) * 0.05;
 
+                    // Detecção segura de fim de transição
                     if (Math.abs(player.y - (activePlanet.y + 90)) < 6) {
                         if (currentPhase < 8) {
                             currentPhase++;
                             nextPhaseAutomated(); 
                         } else {
-                            triggerGameWin(); 
-                            return;
+                            // Se era a fase 8, ativa o encerramento do jogo
+                            triggerGameWin();
                         }
                     }
                 }
 
+                // Renderiza o planeta na transição
                 let pData = planetList[currentPhase - 1];
                 let gradient = ctx.createRadialGradient(activePlanet.x - 50, activePlanet.y - 50, 10, activePlanet.x, activePlanet.y, activePlanet.r);
                 gradient.addColorStop(0, pData.color1);
@@ -330,61 +338,121 @@
                 ctx.fill();
             }
 
-            playerShots.forEach((sh, i) => {
-                sh.y -= 15;
-                ctx.fillStyle = '#00ff00';
-                ctx.fillRect(sh.x-2, sh.y, 4, 20);
-                if(sh.y < -20) playerShots.splice(i, 1);
-            });
+            // CENA FINAL: Renderiza o planeta Terra e o OVNI voando em direção a ele
+            if (gameWon) {
+                starSpeed = 0.5;
+                
+                // Desenha a Terra fixa no meio/canto superior da tela
+                let terraX = canvas.width / 2;
+                let terraY = 200;
+                let terraGradient = ctx.createRadialGradient(terraX - 30, terraY - 30, 5, terraX, terraY, 120);
+                terraGradient.addColorStop(0, "#2b82c9"); // Azul brilhante
+                terraGradient.addColorStop(0.6, "#195383"); // Oceano escuro
+                terraGradient.addColorStop(1, "#050f1a");
+                
+                ctx.fillStyle = terraGradient;
+                ctx.beginPath();
+                ctx.arc(terraX, terraY, 120, 0, Math.PI * 2);
+                ctx.fill();
 
-            enemyShots.forEach((esh, i) => {
-                esh.y += esh.speed;
-                ctx.fillStyle = '#ffff00';
-                ctx.fillRect(esh.x-2, esh.y, 4, 15);
+                // Detalhes verdes (continentes da Terra)
+                ctx.fillStyle = "rgba(34, 139, 34, 0.7)";
+                ctx.beginPath(); ctx.arc(terraX - 40, terraY - 20, 35, 0, Math.PI*2); ctx.fill();
+                ctx.beginPath(); ctx.arc(terraX + 20, terraY + 30, 40, 0, Math.PI*2); ctx.fill();
 
-                if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
-                    enemyShots.splice(i, 1);
-                    player.hp -= 12;
-                    explode(player.x, player.y, '#ff0055');
-                    if(player.hp <= 0) gameOver();
-                }
-                if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
-            });
+                // Desenha e move o OVNI misterioso
+                ufoX += 3;
+                ufoY = (canvas.height / 2) + Math.sin(ufoAngle) * 80;
+                ufoAngle += 0.03;
 
-            if (!phaseTransition) {
-                enemies.forEach((en, i) => {
-                    en.y += en.speed;
-                    
-                    ctx.fillStyle = '#ff3333';
+                // Desenhar a Cúpula do OVNI (Cabine Alien)
+                ctx.fillStyle = "rgba(0, 255, 255, 0.8)";
+                ctx.beginPath();
+                ctx.arc(ufoX, ufoY - 10, 20, Math.PI, 0);
+                ctx.fill();
+
+                // Desenhar o Disco Base Metálico
+                let ufoGrad = ctx.createLinearGradient(ufoX - 50, ufoY, ufoX + 50, ufoY);
+                ufoGrad.addColorStop(0, "#555");
+                ufoGrad.addColorStop(0.5, "#aaa");
+                ufoGrad.addColorStop(1, "#555");
+                ctx.fillStyle = ufoGrad;
+                ctx.beginPath();
+                ctx.ellipse(ufoX, ufoY, 50, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Luzes Piscantes do Disco OVNI
+                for (let l = -35; l <= 35; l += 14) {
+                    ctx.fillStyle = (Math.floor(Date.now() / 150) + l) % 2 === 0 ? "#ff0055" : "#00ff00";
                     ctx.beginPath();
-                    ctx.moveTo(en.x, en.y + en.r);
-                    ctx.lineTo(en.x - en.r, en.y - en.r);
-                    ctx.lineTo(en.x + en.r, en.y - en.r);
+                    ctx.arc(ufoX + l, ufoY + 2, 4, 0, Math.PI * 2);
                     ctx.fill();
+                }
 
-                    playerShots.forEach((sh, si) => {
-                        if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
-                            explode(en.x, en.y, '#ff5500');
-                            enemies.splice(i, 1);
-                            playerShots.splice(si, 1);
-                            score += 250; 
-                            scoreTxt.innerText = "SCORE: " + score + " / 20000";
-                        }
-                    });
-
-                    if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
-                        player.hp -= 25;
-                        explode(en.x, en.y, '#ff0000');
-                        enemies.splice(i, 1);
-                        if(player.hp <= 0) gameOver();
-                    }
-                    if(en.y > canvas.height + 50) enemies.splice(i, 1);
-                });
+                // Reseta a animação se o OVNI sair da tela
+                if (ufoX > canvas.width + 100) ufoX = -100;
             }
 
-            lifeFill.style.width = Math.max(0, player.hp) + "%";
-            if(player.hp < 40) lifeFill.style.background = "#ff0000";
+            // Movimentação de disparos normais
+            if (!gameWon) {
+                playerShots.forEach((sh, i) => {
+                    sh.y -= 15;
+                    ctx.fillStyle = '#00ff00';
+                    ctx.fillRect(sh.x-2, sh.y, 4, 20);
+                    if(sh.y < -20) playerShots.splice(i, 1);
+                });
 
+                enemyShots.forEach((esh, i) => {
+                    esh.y += esh.speed;
+                    ctx.fillStyle = '#ffff00';
+                    ctx.fillRect(esh.x-2, esh.y, 4, 15);
+
+                    if(Math.hypot(esh.x - player.x, esh.y - player.y) < player.r) {
+                        enemyShots.splice(i, 1);
+                        player.hp -= 12;
+                        explode(player.x, player.y, '#ff0055');
+                        if(player.hp <= 0) gameOver();
+                    }
+                    if(esh.y > canvas.height + 20) enemyShots.splice(i, 1);
+                });
+
+                if (!phaseTransition) {
+                    enemies.forEach((en, i) => {
+                        en.y += en.speed;
+                        
+                        ctx.fillStyle = '#ff3333';
+                        ctx.beginPath();
+                        ctx.moveTo(en.x, en.y + en.r);
+                        ctx.lineTo(en.x - en.r, en.y - en.r);
+                        ctx.lineTo(en.x + en.r, en.y - en.r);
+                        ctx.fill();
+
+                        playerShots.forEach((sh, si) => {
+                            if(Math.hypot(sh.x - en.x, sh.y - en.y) < en.r) {
+                                explode(en.x, en.y, '#ff5500');
+                                enemies.splice(i, 1);
+                                playerShots.splice(si, 1);
+                                score += 250; 
+                                scoreTxt.innerText = "SCORE: " + score + " / 20000";
+                            }
+                        });
+
+                        if(Math.hypot(player.x - en.x, player.y - en.y) < player.r + en.r) {
+                            player.hp -= 25;
+                            explode(en.x, en.y, '#ff0000');
+                            enemies.splice(i, 1);
+                            if(player.hp <= 0) gameOver();
+                        }
+                        if(en.y > canvas.height + 50) enemies.splice(i, 1);
+                    });
+                }
+
+                lifeFill.style.width = Math.max(0, player.hp) + "%";
+                if(player.hp < 40) lifeFill.style.background = "#ff0000";
+                drawRocket(player.x, player.y);
+            }
+
+            // Partículas
             particles.forEach((p, i) => {
                 p.x += p.vx; p.y += p.vy; p.a -= 0.03;
                 ctx.fillStyle = p.c;
@@ -394,14 +462,14 @@
                 if(p.a <= 0) particles.splice(i, 1);
             });
 
-            drawRocket(player.x, player.y);
             loopId = requestAnimationFrame(update);
         }
 
         function drawRocket(x, y) {
             ctx.fillStyle = '#ff0055'; 
             ctx.fillRect(x-20, y, 8, 15); ctx.fillRect(x+12, y, 8, 15);
-            ctx.fillStyle = '#ffffff'; 
+            ctx.ffffff = '#ffffff'; 
+            ctx.fillStyle = '#ffffff';
             ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+12, y+10); ctx.lineTo(x-12, y+10); ctx.fill();
             ctx.fillStyle = '#ffaa00'; 
             if(Math.random()>0.4) ctx.fillRect(x-4, y+10, 8, 12);
@@ -418,13 +486,13 @@
         }
 
         function triggerGameWin() {
-            gameActive = false;
             clearInterval(enemyShootInterval);
+            gameWon = true; // Ativa animação do OVNI e do planeta Terra de fundo
             overlay.style.display = 'flex';
             mainTitle.innerText = "SISTEMA SOLAR CONQUISTADO!";
             mainTitle.style.color = "#ffcc00";
-            mainDesc.innerText = "Incrível! Você completou o desafio dos 8 planetas com 20.000 pontos em cada!";
-            btnStart.innerText = "REINICIAR ODISSÉIA";
+            mainDesc.innerText = "Incrível! Olha lá! Um OVNI misterioso cruzando o espaço de volta para a Terra!";
+            btnStart.innerText = "JOGAR NOVAMENTE"; // Botão de reinício visível e ativo no final
         }
 
         window.onresize = () => {
