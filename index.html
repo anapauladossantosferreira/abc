@@ -2,7 +2,7 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Interstellar War - O Final Secreto</title>
+    <title>Interstellar War - Com Login e Ranking</title>
     <style>
         body { 
             margin: 0; 
@@ -18,6 +18,7 @@
             left: 20px; 
             z-index: 10; 
             pointer-events: none; 
+            display: none; /* Oculto até o login ser feito */
         }
         .hud { 
             font-size: 24px; 
@@ -25,53 +26,57 @@
             text-shadow: 2px 2px #000;
             margin-bottom: 5px;
         }
-        #planet-name {
-            color: #00d4ff;
-        }
+        #planet-name { color: #00d4ff; }
         #life-bar {
-            width: 200px;
-            height: 15px;
-            background: #550000;
-            border: 2px solid #fff;
-            border-radius: 10px;
-            overflow: hidden;
+            width: 200px; height: 15px;
+            background: #550000; border: 2px solid #fff;
+            border-radius: 10px; overflow: hidden;
         }
-        #life-fill {
-            width: 100%;
-            height: 100%;
-            background: #00ff00;
-            transition: width 0.1s;
-        }
+        #life-fill { width: 100%; height: 100%; background: #00ff00; transition: width 0.1s; }
+        
+        /* Telas de Menu/Login Overlay */
         #overlay {
             position: absolute; 
-            width: 100%; 
-            height: 100%;
-            background: rgba(2, 2, 5, 0.9);
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center; 
-            align-items: center; 
+            width: 100%; height: 100%;
+            background: rgba(2, 2, 5, 0.95);
+            display: flex; flex-direction: column; 
+            justify-content: center; align-items: center; 
             z-index: 100;
         }
         h1 {
-            font-size: 50px;
-            color: #00d4ff;
-            margin: 10px;
-            text-shadow: 0 0 15px #00d4ff;
-            text-align: center;
+            font-size: 50px; color: #00d4ff; margin: 10px;
+            text-shadow: 0 0 15px #00d4ff; text-align: center;
         }
         p { text-align: center; margin: 5px; }
+        
+        /* Formulário de Login */
+        .login-box {
+            display: flex; flex-direction: column;
+            gap: 12px; margin: 20px 0; width: 280px;
+        }
+        .login-box input {
+            padding: 12px; font-size: 16px; border: 2px solid #00d4ff;
+            background: #111; color: #fff; border-radius: 8px;
+            text-align: center; font-family: sans-serif;
+        }
+        .login-box input:focus { outline: none; box-shadow: 0 0 10px #00d4ff; }
+        #login-error { color: #ff0055; font-size: 14px; font-weight: bold; min-height: 20px; }
+
+        /* Tabela de Ranking */
+        #ranking-container {
+            margin-top: 15px; background: rgba(255, 255, 255, 0.05);
+            padding: 15px; border-radius: 10px; border: 1px solid #333;
+            width: 300px; display: none;
+        }
+        .ranking-table { width: 100%; border-collapse: collapse; font-family: sans-serif; }
+        .ranking-table th { color: #ffcc00; border-bottom: 2px solid #ffcc00; padding: 5px; }
+        .ranking-table td { padding: 6px; text-align: center; border-bottom: 1px solid #222; }
+        
         button {
-            padding: 20px 60px; 
-            font-size: 25px; 
-            background: #ff0055; 
-            color: white; 
-            border: none;
-            border-radius: 50px; 
-            cursor: pointer; 
-            font-weight: bold; 
-            margin-top: 20px;
-            box-shadow: 0 0 20px #ff0055;
+            padding: 15px 50px; font-size: 22px; 
+            background: #ff0055; color: white; border: none;
+            border-radius: 50px; cursor: pointer; font-weight: bold; 
+            margin-top: 15px; box-shadow: 0 0 20px #ff0055;
             pointer-events: auto;
         }
         canvas { display: block; }
@@ -89,9 +94,30 @@
 
     <div id="overlay">
         <h1 id="main-title">GALAXY WAR: 8 PLANETAS</h1>
-        <p id="main-desc">Ganhe 250 pontos por nave até atingir 20.000 em cada planeta!</p>
-        <p style="color: #00ff00; font-size: 14px;">Mova o Mouse | Clique ou Espaço: Atira</p>
-        <button id="btn-start">DECOLAR</button>
+        <p id="main-desc">Entre com seu piloto e senha de 4 dígitos para decolar!</p>
+        
+        <div class="login-box" id="login-form">
+            <input type="text" id="username" placeholder="Nome do Piloto" maxlength="12" autocomplete="off">
+            <input type="password" id="password" placeholder="Senha (4 caracteres)" maxlength="4">
+            <div id="login-error"></div>
+        </div>
+
+        <div id="ranking-container">
+            <p style="color: #ffcc00; font-weight: bold; margin-bottom: 8px;">🏆 TOP 5 PILOTOS</p>
+            <table class="ranking-table">
+                <thead>
+                    <tr>
+                        <th>Pos</th>
+                        <th>Piloto</th>
+                        <th>Score Total</th>
+                    </tr>
+                </thead>
+                <tbody id="ranking-body">
+                    </tbody>
+            </table>
+        </div>
+
+        <button id="btn-start">CONECTAR</button>
     </div>
 
     <canvas id="gameCanvas"></canvas>
@@ -107,21 +133,32 @@
         const btnStart = document.getElementById('btn-start');
         const mainTitle = document.getElementById('main-title');
         const mainDesc = document.getElementById('main-desc');
+        
+        // Elementos novos de Login e Ranking
+        const loginForm = document.getElementById('login-form');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const loginError = document.getElementById('login-error');
+        const rankingContainer = document.getElementById('ranking-container');
+        const rankingBody = document.getElementById('ranking-body');
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
         let gameActive = false;
         let phaseTransition = false;
-        let gameWon = false; // Nova flag para controlar o estado final de vitória
+        let gameWon = false; 
+        let isLoggedIn = false;
+        let playerSessionName = "";
+        
         let currentPhase = 1;
         let score = 0;
+        let totalAccumulatedScore = 0; // Guarda os pontos totais para salvar no ranking
         let loopId = null;
         let spawnTimeout = null;
         let enemyShootInterval = null;
         let starSpeed = 1;
 
-        // Variáveis da animação do OVNI final
         let ufoX = -100;
         let ufoY = canvas.height / 2;
         let ufoAngle = 0;
@@ -162,25 +199,45 @@
         }
 
         window.addEventListener('mousedown', () => { 
-            if(gameActive) {
-                playerFire(); 
-            }
+            if(gameActive) playerFire(); 
         });
         
         window.addEventListener('keydown', e => {
             if(e.code === 'Space') {
                 e.preventDefault();
-                if(gameActive) {
-                    playerFire();
-                } else {
-                    initGame(true);
-                }
+                if(gameActive) playerFire();
             }
         });
 
+        // Botão Único que Gerencia Login e depois os Reinícios do Jogo
         btnStart.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
+
+            if (!isLoggedIn) {
+                let user = usernameInput.value.trim();
+                let pass = passwordInput.value;
+
+                if (user.length < 2) {
+                    loginError.innerText = "Nome precisa de ao menos 2 letras.";
+                    return;
+                }
+                if (pass.length !== 4) {
+                    loginError.innerText = "A senha DEVE ter exatamente 4 caracteres.";
+                    return;
+                }
+
+                // Login efetuado com sucesso
+                isLoggedIn = true;
+                playerSessionName = user;
+                loginForm.style.display = 'none';
+                document.getElementById('ui').style.display = 'block';
+                btnStart.innerText = "DECOLAR";
+                mainDesc.innerText = `Piloto ${playerSessionName} autenticado. Pronto para o combate!`;
+                return;
+            }
+
+            // Se já estiver logado, o botão serve para rodar o game
             initGame(true); 
         });
 
@@ -198,9 +255,12 @@
             player.x = canvas.width / 2;
             player.y = canvas.height - 150;
             activePlanet.y = -350;
-            ufoX = -100; // Reseta posição do OVNI
+            ufoX = -100;
 
-            if (resetAll) currentPhase = 1;
+            if (resetAll) {
+                currentPhase = 1;
+                totalAccumulatedScore = 0;
+            }
 
             phaseTxt.innerText = currentPhase;
             planetTxt.innerText = planetList[currentPhase - 1].name;
@@ -211,6 +271,7 @@
             particles = [];
             
             overlay.style.display = 'none';
+            rankingContainer.style.display = 'none';
             scoreTxt.innerText = "SCORE: 0 / 20000";
             lifeFill.style.width = "100%";
             lifeFill.style.background = "#00ff00";
@@ -262,10 +323,8 @@
             for(let i=0; i<10; i++) {
                 particles.push({
                     x, y, 
-                    vx: (Math.random()-0.5)*12, 
-                    vy: (Math.random()-0.5)*12, 
-                    a: 1,
-                    c: color
+                    vx: (Math.random()-0.5)*12, vy: (Math.random()-0.5)*12, 
+                    a: 1, c: color
                 });
             }
         }
@@ -276,7 +335,6 @@
             ctx.fillStyle = '#020205';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Estrelas de fundo
             ctx.fillStyle = 'white';
             stars.forEach(s => {
                 s.y += starSpeed; 
@@ -284,7 +342,6 @@
                 ctx.fillRect(s.x, s.y, s.s, s.s);
             });
 
-            // Ativar animação de vitória total se Netuno (fase 8) for completado
             if (score >= 20000 && !phaseTransition) {
                 phaseTransition = true;
                 enemies = []; 
@@ -292,7 +349,6 @@
                 starSpeed = 20; 
             }
 
-            // Controle de transições normais e finais
             if (phaseTransition && !gameWon) {
                 if (activePlanet.y < activePlanet.targetY) {
                     activePlanet.y += 3;
@@ -301,19 +357,16 @@
                     player.x += (activePlanet.x - player.x) * 0.05;
                     player.y += ((activePlanet.y + 90) - player.y) * 0.05;
 
-                    // Detecção segura de fim de transição
                     if (Math.abs(player.y - (activePlanet.y + 90)) < 6) {
                         if (currentPhase < 8) {
                             currentPhase++;
                             nextPhaseAutomated(); 
                         } else {
-                            // Se era a fase 8, ativa o encerramento do jogo
                             triggerGameWin();
                         }
                     }
                 }
 
-                // Renderiza o planeta na transição
                 let pData = planetList[currentPhase - 1];
                 let gradient = ctx.createRadialGradient(activePlanet.x - 50, activePlanet.y - 50, 10, activePlanet.x, activePlanet.y, activePlanet.r);
                 gradient.addColorStop(0, pData.color1);
@@ -323,13 +376,10 @@
                 if (pData.hasRings) {
                     ctx.strokeStyle = "rgba(197, 160, 89, 0.5)";
                     ctx.lineWidth = 15;
-                    ctx.save();
-                    ctx.translate(activePlanet.x, activePlanet.y);
-                    ctx.scale(2, 0.4);
-                    ctx.beginPath();
+                    ctx.save(); ctx.translate(activePlanet.x, activePlanet.y);
+                    ctx.scale(2, 0.4); ctx.beginPath();
                     ctx.arc(0, 0, activePlanet.r - 20, 0, Math.PI * 2);
-                    ctx.stroke();
-                    ctx.restore();
+                    ctx.stroke(); ctx.restore();
                 }
 
                 ctx.fillStyle = gradient;
@@ -338,62 +388,42 @@
                 ctx.fill();
             }
 
-            // CENA FINAL: Renderiza o planeta Terra e o OVNI voando em direção a ele
             if (gameWon) {
                 starSpeed = 0.5;
-                
-                // Desenha a Terra fixa no meio/canto superior da tela
                 let terraX = canvas.width / 2;
                 let terraY = 200;
                 let terraGradient = ctx.createRadialGradient(terraX - 30, terraY - 30, 5, terraX, terraY, 120);
-                terraGradient.addColorStop(0, "#2b82c9"); // Azul brilhante
-                terraGradient.addColorStop(0.6, "#195383"); // Oceano escuro
+                terraGradient.addColorStop(0, "#2b82c9");
+                terraGradient.addColorStop(0.6, "#195383");
                 terraGradient.addColorStop(1, "#050f1a");
                 
                 ctx.fillStyle = terraGradient;
-                ctx.beginPath();
-                ctx.arc(terraX, terraY, 120, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(terraX, terraY, 120, 0, Math.PI * 2); ctx.fill();
 
-                // Detalhes verdes (continentes da Terra)
                 ctx.fillStyle = "rgba(34, 139, 34, 0.7)";
                 ctx.beginPath(); ctx.arc(terraX - 40, terraY - 20, 35, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(terraX + 20, terraY + 30, 40, 0, Math.PI*2); ctx.fill();
 
-                // Desenha e move o OVNI misterioso
                 ufoX += 3;
                 ufoY = (canvas.height / 2) + Math.sin(ufoAngle) * 80;
                 ufoAngle += 0.03;
 
-                // Desenhar a Cúpula do OVNI (Cabine Alien)
                 ctx.fillStyle = "rgba(0, 255, 255, 0.8)";
-                ctx.beginPath();
-                ctx.arc(ufoX, ufoY - 10, 20, Math.PI, 0);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(ufoX, ufoY - 10, 20, Math.PI, 0); ctx.fill();
 
-                // Desenhar o Disco Base Metálico
                 let ufoGrad = ctx.createLinearGradient(ufoX - 50, ufoY, ufoX + 50, ufoY);
-                ufoGrad.addColorStop(0, "#555");
-                ufoGrad.addColorStop(0.5, "#aaa");
-                ufoGrad.addColorStop(1, "#555");
+                ufoGrad.addColorStop(0, "#555"); ufoGrad.addColorStop(0.5, "#aaa"); ufoGrad.addColorStop(1, "#555");
                 ctx.fillStyle = ufoGrad;
-                ctx.beginPath();
-                ctx.ellipse(ufoX, ufoY, 50, 15, 0, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.ellipse(ufoX, ufoY, 50, 15, 0, 0, Math.PI * 2); ctx.fill();
 
-                // Luzes Piscantes do Disco OVNI
                 for (let l = -35; l <= 35; l += 14) {
                     ctx.fillStyle = (Math.floor(Date.now() / 150) + l) % 2 === 0 ? "#ff0055" : "#00ff00";
-                    ctx.beginPath();
-                    ctx.arc(ufoX + l, ufoY + 2, 4, 0, Math.PI * 2);
-                    ctx.fill();
+                    ctx.beginPath(); ctx.arc(ufoX + l, ufoY + 2, 4, 0, Math.PI * 2); ctx.fill();
                 }
 
-                // Reseta a animação se o OVNI sair da tela
                 if (ufoX > canvas.width + 100) ufoX = -100;
             }
 
-            // Movimentação de disparos normais
             if (!gameWon) {
                 playerShots.forEach((sh, i) => {
                     sh.y -= 15;
@@ -419,7 +449,6 @@
                 if (!phaseTransition) {
                     enemies.forEach((en, i) => {
                         en.y += en.speed;
-                        
                         ctx.fillStyle = '#ff3333';
                         ctx.beginPath();
                         ctx.moveTo(en.x, en.y + en.r);
@@ -433,6 +462,7 @@
                                 enemies.splice(i, 1);
                                 playerShots.splice(si, 1);
                                 score += 250; 
+                                totalAccumulatedScore += 250;
                                 scoreTxt.innerText = "SCORE: " + score + " / 20000";
                             }
                         });
@@ -452,13 +482,10 @@
                 drawRocket(player.x, player.y);
             }
 
-            // Partículas
             particles.forEach((p, i) => {
                 p.x += p.vx; p.y += p.vy; p.a -= 0.03;
-                ctx.fillStyle = p.c;
-                ctx.globalAlpha = p.a;
-                ctx.fillRect(p.x, p.y, 3, 3);
-                ctx.globalAlpha = 1;
+                ctx.fillStyle = p.c; ctx.globalAlpha = p.a;
+                ctx.fillRect(p.x, p.y, 3, 3); ctx.globalAlpha = 1;
                 if(p.a <= 0) particles.splice(i, 1);
             });
 
@@ -468,11 +495,38 @@
         function drawRocket(x, y) {
             ctx.fillStyle = '#ff0055'; 
             ctx.fillRect(x-20, y, 8, 15); ctx.fillRect(x+12, y, 8, 15);
-            ctx.ffffff = '#ffffff'; 
             ctx.fillStyle = '#ffffff';
             ctx.beginPath(); ctx.moveTo(x, y-30); ctx.lineTo(x+12, y+10); ctx.lineTo(x-12, y+10); ctx.fill();
             ctx.fillStyle = '#ffaa00'; 
             if(Math.random()>0.4) ctx.fillRect(x-4, y+10, 8, 12);
+        }
+
+        // LÓGICA DE RANKING (Salva localmente no navegador)
+        function saveAndShowRanking() {
+            let leaderboard = JSON.parse(localStorage.getItem('galaxy_ranking')) || [];
+            
+            // Adiciona a pontuação atual do jogador
+            leaderboard.push({ name: playerSessionName, score: totalAccumulatedScore });
+            
+            // Ordena do maior para o menor e pega o Top 5
+            leaderboard.sort((a, b) => b.score - a.score);
+            leaderboard = leaderboard.slice(0, 5);
+            
+            localStorage.setItem('galaxy_ranking', JSON.stringify(leaderboard));
+
+            // Renderiza na tabela HTML
+            rankingBody.innerHTML = "";
+            leaderboard.forEach((item, index) => {
+                rankingBody.innerHTML += `
+                    <tr>
+                        <td>${index + 1}º</td>
+                        <td>${item.name}</td>
+                        <td>${item.score} pts</td>
+                    </tr>
+                `;
+            });
+
+            rankingContainer.style.display = 'block';
         }
 
         function gameOver() {
@@ -481,18 +535,20 @@
             overlay.style.display = 'flex';
             mainTitle.innerText = "MISSÃO COMPROMETIDA";
             mainTitle.style.color = "#ff0055";
-            mainDesc.innerText = `Você caiu defendendo a órbita de ${planetList[currentPhase-1].name}.`;
-            btnStart.innerText = "RECOMEÇAR JORNADA";
+            mainDesc.innerText = `Piloto ${playerSessionName} caiu defendendo a órbita de ${planetList[currentPhase-1].name}.`;
+            btnStart.innerText = "RECOMENÇAR JORNADA";
+            saveAndShowRanking();
         }
 
         function triggerGameWin() {
             clearInterval(enemyShootInterval);
-            gameWon = true; // Ativa animação do OVNI e do planeta Terra de fundo
+            gameWon = true; 
             overlay.style.display = 'flex';
-            mainTitle.innerText = "SISTEMA SOLAR CONQUISTADO!";
+            mainTitle.innerText = "SISTEMA SOLAR SALVO!";
             mainTitle.style.color = "#ffcc00";
-            mainDesc.innerText = "Incrível! Olha lá! Um OVNI misterioso cruzando o espaço de volta para a Terra!";
-            btnStart.innerText = "JOGAR NOVAMENTE"; // Botão de reinício visível e ativo no final
+            mainDesc.innerText = `Incrível, Piloto ${playerSessionName}! O OVNI misterioso ruma em paz de volta à Terra!`;
+            btnStart.innerText = "JOGAR NOVAMENTE";
+            saveAndShowRanking();
         }
 
         window.onresize = () => {
